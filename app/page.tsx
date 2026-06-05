@@ -1,65 +1,172 @@
-import Image from "next/image";
+import Link from "next/link";
+import AppShell from "./components/AppShell";
+import Sparkline from "./components/Sparkline";
+import EnvironmentCard from "./components/EnvironmentCard";
+import DeployButton from "./components/DeployButton";
+import { environments } from "./data/environments";
+import { agents, agentRuns, aggregateCurve, agentReward } from "./data/agents";
+
+const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
+const num = new Intl.NumberFormat("en-US");
+
+const fleetCurve = environments[0].rewardCurve.map((_, i) =>
+  environments.reduce((s, e) => s + (e.rewardCurve[i] ?? 0), 0) / environments.length
+);
+
+const activity = [
+  { text: "Hermes-Gamma deployed to CartPole Swarm", meta: "2m ago" },
+  { text: "Reward payout settled on Sui", meta: "412 SUI · 18m ago" },
+  { text: "Market Maker Bandit checkpoint saved", meta: "1h ago" },
+  { text: "Hermes-Beta started training", meta: "2h ago" },
+];
 
 export default function Home() {
+  const totalReward = environments.reduce((s, e) => s + e.reward, 0);
+  const avgSuccess = environments.reduce((s, e) => s + e.successRate, 0) / environments.length;
+  const featured = [...environments].sort((a, b) => b.reward - a.reward).slice(0, 3);
+
+  const agentRows = agents
+    .map((a) => {
+      const runs = agentRuns(a);
+      return { agent: a, envs: runs.length, reward: agentReward(runs), curve: aggregateCurve(runs) };
+    })
+    .sort((a, b) => b.reward - a.reward);
+
+  const stats = [
+    { label: "Environments", value: num.format(environments.length) },
+    { label: "Agents", value: num.format(agents.length) },
+    { label: "Total reward", value: `${compact.format(totalReward)} SUI` },
+    { label: "Avg success", value: `${(avgSuccess * 100).toFixed(0)}%` },
+  ];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <AppShell>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-5 sm:px-8">
+        {/* Hero */}
+        <section className="py-14 sm:py-20">
+          <p className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.25em] text-ink/50">
+            <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+            Agentic RL · on Sui
           </p>
+          <h1 className="mt-4 max-w-2xl text-3xl font-medium leading-tight tracking-tight sm:text-4xl">
+            Train, deploy &amp; reward autonomous agents on-chain.
+          </h1>
+          <p className="mt-4 max-w-xl text-sm leading-6 text-ink/60">
+            A marketplace of RL environments and the Hermes agents that learn in them.
+            Connect your Sui wallet to deploy, train, and claim rewards.
+          </p>
+          <div className="mt-7 flex flex-wrap items-center gap-4">
+            <DeployButton>Deploy environment</DeployButton>
+            <Link href="/environments" className="text-sm text-ink/60 underline-offset-4 hover:text-accent hover:underline">
+              Browse environments →
+            </Link>
+          </div>
+        </section>
+
+        {/* Overview KPIs */}
+        <section className="grid grid-cols-2 gap-px overflow-hidden border border-ink/15 bg-ink/10 lg:grid-cols-4">
+          {stats.map((s) => (
+            <div key={s.label} className="bg-background p-4">
+              <div className="font-mono text-2xl">{s.value}</div>
+              <div className="mt-1 font-mono text-[11px] uppercase tracking-wide text-ink/40">{s.label}</div>
+            </div>
+          ))}
+        </section>
+
+        {/* Featured + activity */}
+        <div className="mt-10 grid gap-8 lg:grid-cols-[1.6fr_1fr]">
+          <section>
+            <div className="mb-4 flex items-baseline justify-between">
+              <h2 className="font-mono text-xs uppercase tracking-[0.25em] text-ink/50">Featured environments</h2>
+              <Link href="/environments" className="font-mono text-xs text-ink/50 underline-offset-4 hover:text-accent hover:underline">
+                view all →
+              </Link>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {featured.map((env) => (
+                <EnvironmentCard key={env.id} env={env} />
+              ))}
+            </div>
+          </section>
+
+          <aside className="flex flex-col gap-6">
+            <section className="border border-ink/15 p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-sm font-medium uppercase tracking-wide">Network reward</h2>
+                <span className="font-mono text-xs text-accent">+12.4% / 24h</span>
+              </div>
+              <Sparkline data={fleetCurve} height={80} className="text-accent" />
+            </section>
+
+            <section className="border border-ink/15 p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-sm font-medium uppercase tracking-wide">Recent activity</h2>
+                <Link href="/agents" className="font-mono text-[11px] text-ink/40 underline-offset-4 hover:text-accent hover:underline">
+                  agents →
+                </Link>
+              </div>
+              <ul className="space-y-4">
+                {activity.map((a) => (
+                  <li key={a.text} className="flex items-start gap-3">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                    <div>
+                      <p className="text-sm leading-snug text-ink/80">{a.text}</p>
+                      <p className="font-mono text-[11px] text-ink/40">{a.meta}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </aside>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+
+        {/* Your agents */}
+        <section className="mt-10">
+          <div className="mb-4 flex items-baseline justify-between">
+            <h2 className="font-mono text-xs uppercase tracking-[0.25em] text-ink/50">Your agents</h2>
+            <Link href="/agents" className="font-mono text-xs text-ink/50 underline-offset-4 hover:text-accent hover:underline">
+              view all →
+            </Link>
+          </div>
+          <div className="divide-y divide-ink/10 overflow-hidden rounded-lg border border-ink/15">
+            {agentRows.map(({ agent, envs, reward, curve }) => {
+              const tone =
+                agent.status === "Active" ? "bg-accent" : agent.status === "Training" ? "bg-ink" : "bg-transparent border border-ink/40";
+              return (
+                <Link
+                  key={agent.id}
+                  href="/agents"
+                  className="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-accent/[0.04]"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink text-[11px] font-semibold text-background">
+                    {agent.name.split("-")[1]?.[0] ?? "H"}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium group-hover:text-accent">{agent.name}</div>
+                    <div className="font-mono text-[11px] text-ink/40">{agent.model}</div>
+                  </div>
+                  <span className="hidden w-24 sm:block">
+                    <Sparkline data={curve} height={24} className="text-accent" fill={false} />
+                  </span>
+                  <span className="hidden w-20 text-right font-mono text-xs text-ink/60 sm:block">{envs} envs</span>
+                  <span className="w-24 text-right font-mono text-xs">{compact.format(reward)} SUI</span>
+                  <span className="inline-flex w-20 shrink-0 items-center justify-end gap-1.5 text-[11px] uppercase tracking-wide text-ink/60">
+                    <span className={`h-1.5 w-1.5 rounded-full ${tone}`} />
+                    {agent.status}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
       </main>
-    </div>
+
+      <footer className="mt-12 border-t border-ink/15 px-5 py-6 sm:px-8">
+        <div className="mx-auto flex max-w-6xl items-center justify-between font-mono text-xs text-ink/40">
+          <span>© {new Date().getFullYear()} pollius rl — sample ui</span>
+          <span>sui testnet</span>
+        </div>
+      </footer>
+    </AppShell>
   );
 }
