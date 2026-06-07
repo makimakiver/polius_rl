@@ -38,6 +38,5 @@ export async function POST(req: Request) {
     agent_name: claims.agent_name,
     address: b,
     description: claims.description,
-    role: claims.role,
   });
 }

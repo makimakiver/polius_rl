@@ -21,7 +21,6 @@ export interface AgentClaims {
   agent_name: string;
   address: string;
   description: string;
-  role: string;
 }
 
 interface SignedPayload extends AgentClaims {

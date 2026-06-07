@@ -51,7 +51,6 @@ export default function RegisterAgentFlow({ initialToken = "" }: { initialToken?
       setClaims({
         agent_name: json.agent_name,
         address: json.address,
-        role: json.role,
         description: json.description,
       });
       setStatus("verified");
@@ -123,7 +122,6 @@ export default function RegisterAgentFlow({ initialToken = "" }: { initialToken?
             <h2 className="mb-3 font-mono text-xs uppercase tracking-[0.2em] text-accent">✓ Verified agent</h2>
             <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
               <Row label="name" value={`${claims.agent_name}.polius.sui`} />
-              <Row label="role" value={claims.role} />
               <Row label="owner" value={shortAddress(claims.address, 10, 6)} mono />
               <Row label="description" value={claims.description} />
             </dl>

@@ -9,7 +9,6 @@ const KEY = "pollius.customAgents";
 export interface VerifiedClaims {
   agent_name: string;
   address: string;
-  role: string;
   description: string;
 }
 
@@ -64,7 +63,6 @@ export function agentFromClaims(claims: VerifiedClaims): Agent {
     uptime: "new",
     claimable: 0,
     envIds: [],
-    role: claims.role,
     description: claims.description,
     owner: claims.address,
     identityId: deriveIdentityId(claims.address, claims.agent_name),
