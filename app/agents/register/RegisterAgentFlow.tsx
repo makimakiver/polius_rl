@@ -29,6 +29,7 @@ export default function RegisterAgentFlow({ initialToken = "" }: { initialToken?
     if (!token.trim()) return;
     setStatus("verifying");
     setError(null);
+    setClaims(null);
     try {
       const r = await fetch("/api/verify-token", {
         method: "POST",
@@ -62,7 +63,7 @@ export default function RegisterAgentFlow({ initialToken = "" }: { initialToken?
     setStatus("issued");
   }
 
-  const verifyDisabled = account ? !token.trim() || status === "verifying" : false;
+  const verifyDisabled = !!account && (!token.trim() || status === "verifying");
 
   return (
     <AppShell>
