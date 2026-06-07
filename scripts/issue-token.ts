@@ -4,22 +4,21 @@
  * (source .env.local first). NOT for production use.
  *
  *   set -a; . ./.env.local; set +a
- *   npx tsx scripts/issue-token.ts --name demo-agent --address 0xabc --role trader --desc "demo"
+ *   npx tsx scripts/issue-token.ts --name demo-agent --address 0xabc --desc "demo"
  */
-import { issueToken, verifyToken } from "../lib/token";
+import { issueToken, verifyToken, type AgentClaims } from "../lib/token";
 
 function arg(flag: string, fallback: string): string {
   const i = process.argv.indexOf(flag);
   return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
 }
 
-const claims = {
+const claims: AgentClaims = {
   agent_name: arg("--name", "demo-agent"),
   address: arg(
     "--address",
     "0x0000000000000000000000000000000000000000000000000000000000000abc",
   ),
-  role: arg("--role", "trader"),
   description: arg("--desc", "a demo agent"),
 };
 
