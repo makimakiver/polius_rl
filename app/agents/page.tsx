@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import AppShell from "../components/AppShell";
@@ -26,22 +26,28 @@ export default function AgentsDashboard() {
   const account = useCurrentAccount();
   const { open } = useWalletModal();
 
-  // user-registered agents (mock, persisted in localStorage); loaded client-side
-  // lazy initializer runs only in the browser, avoiding hydration mismatch
-  const [custom] = useState<Agent[]>(() =>
-    typeof window !== "undefined" ? loadCustomAgents() : []
-  );
-  const allAgents = useMemo(() => [...agents, ...custom], [custom]);
+  // user-registered agents (mock, persisted in localStorage). Loaded in an effect
+  // — NOT a lazy initializer — so the server render and the first client render
+  // both start from the mock list (custom = []), avoiding a hydration mismatch.
+  const [custom, setCustom] = useState<Agent[]>([]);
 
-  // operational state — seed custom agents first so existing mock keys win via spread order
-  const [statuses, setStatuses] = useState<Record<string, AgentStatus>>(() => ({
-    ...Object.fromEntries(custom.map((a) => [a.id, a.status])),
-    ...Object.fromEntries(agents.map((a) => [a.id, a.status])),
-  }));
-  const [claimable, setClaimable] = useState<Record<string, number>>(() => ({
-    ...Object.fromEntries(custom.map((a) => [a.id, a.claimable])),
-    ...Object.fromEntries(agents.map((a) => [a.id, a.claimable])),
-  }));
+  // operational state (seeded from the mock agents; custom agents are merged in
+  // by the effect below once localStorage is read on the client)
+  const [statuses, setStatuses] = useState<Record<string, AgentStatus>>(
+    Object.fromEntries(agents.map((a) => [a.id, a.status]))
+  );
+  const [claimable, setClaimable] = useState<Record<string, number>>(
+    Object.fromEntries(agents.map((a) => [a.id, a.claimable]))
+  );
+
+  useEffect(() => {
+    const c = loadCustomAgents();
+    setCustom(c);
+    setStatuses((s) => ({ ...Object.fromEntries(c.map((a) => [a.id, a.status])), ...s }));
+    setClaimable((cl) => ({ ...Object.fromEntries(c.map((a) => [a.id, a.claimable])), ...cl }));
+  }, []);
+
+  const allAgents = useMemo(() => [...agents, ...custom], [custom]);
 
   // controls
   const [query, setQuery] = useState("");
