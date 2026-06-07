@@ -157,6 +157,7 @@ export default function AgentLoopVisual({ className }: { className?: string }) {
       <text className="al-fade al-count" x={300} y={160} textAnchor="middle" style={{ ...monoLabel(13, "#15171c"), opacity: 0 }}>
         reward 0
       </text>
+      {/* sparkline stroke — also used as the motion-path guide for .al-spark-dot */}
       <path id="al-spark" className="al-draw" d={SPARK_PATH} stroke="#2b93f0" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" />
 
       {/* AGENT node */}
