@@ -56,7 +56,8 @@ export function deriveIdentityId(owner: string, agentName: string): string {
 
 export function agentFromClaims(claims: VerifiedClaims): Agent {
   return {
-    id: slugify(claims.agent_name) || "agent",
+    // namespaced so a user-chosen name can't collide with a built-in mock agent id
+    id: "custom-" + (slugify(claims.agent_name) || "agent"),
     name: claims.agent_name,
     model: "custom",
     status: "Idle",
