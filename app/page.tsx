@@ -4,6 +4,7 @@ import Sparkline from "./components/Sparkline";
 import EnvironmentCard from "./components/EnvironmentCard";
 import DeployButton from "./components/DeployButton";
 import AgentLoopVisual from "./components/AgentLoopVisual";
+import ContractDemo from "./components/ContractDemo";
 import { environments } from "./data/environments";
 import { agents, agentRuns, aggregateCurve, agentReward } from "./data/agents";
 
@@ -123,6 +124,9 @@ export default function Home() {
             </section>
           </aside>
         </div>
+
+        {/* Smart contract execution demo (zkLogin + normal wallets) */}
+        <ContractDemo />
 
         {/* Your agents */}
         <section className="mt-10">

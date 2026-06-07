@@ -9,6 +9,7 @@ import {
 } from "@mysten/dapp-kit";
 import { getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
 import { WalletModalProvider } from "./components/wallet";
+import { RegisterEnokiWallets } from "./components/RegisterEnokiWallets";
 
 const { networkConfig } = createNetworkConfig({
   testnet: { url: getJsonRpcFullnodeUrl("testnet"), network: "testnet" },
@@ -26,6 +27,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         {/* We build our own connect UI (see ./components/wallet), so dapp-kit's
             prebuilt ConnectButton/ConnectModal and its CSS are not used. */}
         <WalletProvider autoConnect>
+          <RegisterEnokiWallets />
           <WalletModalProvider>{children}</WalletModalProvider>
         </WalletProvider>
       </SuiClientProvider>

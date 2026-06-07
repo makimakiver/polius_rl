@@ -102,6 +102,11 @@ fun create_world_internal(
     cap
 }
 
+/// No-op demo entry. Does nothing on-chain — exists purely so the frontend can
+/// demonstrate signing + executing a Move call (works for both zkLogin/Enoki
+/// and normal wallets). Not published until you rebuild + publish the package.
+entry fun ping(_ctx: &TxContext) {}
+
 // ---- read path (lazy, no write, no gas beyond RPC) ----------------------
 
 /// Lazily derive the world's true current value as a pure function of time.
