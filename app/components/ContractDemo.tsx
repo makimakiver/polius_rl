@@ -20,7 +20,6 @@ import { useWalletModal } from "./wallet";
 const PKG =
   process.env.NEXT_PUBLIC_PKG_ID ??
   "0x7b65a4b95f21702c38289dd417bdb14bd20f4abfcd4ddf72a52ac83db482e844";
-const CLOCK = "0x6"; // shared system Clock object
 
 function truncate(a: string) {
   return `${a.slice(0, 6)}…${a.slice(-4)}`;
@@ -47,8 +46,7 @@ export default function ContractDemo() {
     setError(null);
 
     const tx = new Transaction();
-    // create_world_entry(name, description, tags, artifact_uri,
-    //   decay_bps_per_day, floor, ceil, init_value, clock, ctx)
+    // create_world_entry(name, description, tags, artifact_uri, ctx)
     // One-click demo with placeholder metadata. The real registry form lives
     // on /deploy.
     tx.moveCall({
@@ -58,16 +56,8 @@ export default function ContractDemo() {
         tx.pure.string("one-click contract demo"), // description
         tx.pure.vector("string", ["demo"]), // tags
         tx.pure.string(""), // artifact_uri
-        tx.pure.u64(100), // decay_bps_per_day
-        tx.pure.u64(0), // floor
-        tx.pure.u64(1000), // ceil
-        tx.pure.u64(500), // init_value
-        tx.object(CLOCK), // &Clock
       ],
     });
-
-    // After you republish the package, swap the call above for the no-op:
-    //   tx.moveCall({ target: `${PKG}::environment::ping` });
 
     signAndExecute(
       { transaction: tx },

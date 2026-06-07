@@ -16,15 +16,6 @@ const ALGOS = ["PPO", "SAC", "DQN", "Rainbow DQN", "A2C", "TD3", "Thompson Sampl
 const PKG =
   process.env.NEXT_PUBLIC_PKG_ID ??
   "0x7b65a4b95f21702c38289dd417bdb14bd20f4abfcd4ddf72a52ac83db482e844";
-const CLOCK = "0x6"; // shared system Clock object
-
-// Decay dynamics for the Phase-0 world substrate. Not part of the registry
-// metadata, so they use sensible fixed defaults here.
-const DECAY_BPS_PER_DAY = 100;
-const FLOOR = 0;
-const CEIL = 1000;
-const INIT_VALUE = 500;
-
 const fieldCls =
   "w-full border border-ink/15 bg-white/60 px-3 py-2 text-sm outline-none transition-colors focus:border-accent placeholder:text-ink/30";
 const labelCls = "mb-1.5 block text-xs font-medium uppercase tracking-wide text-ink/50";
@@ -71,8 +62,7 @@ export default function DeployPage() {
       .filter((t) => t.length > 0);
 
     const tx = new Transaction();
-    // create_world_entry(name, description, tags, artifact_uri,
-    //   decay_bps_per_day, floor, ceil, init_value, clock, ctx)
+    // create_world_entry(name, description, tags, artifact_uri, ctx)
     tx.moveCall({
       target: `${PKG}::environment::create_world_entry`,
       arguments: [
@@ -80,11 +70,6 @@ export default function DeployPage() {
         tx.pure.string(description.trim()), // description
         tx.pure.vector("string", tagList), // tags
         tx.pure.string(artifactUri.trim()), // artifact_uri
-        tx.pure.u64(DECAY_BPS_PER_DAY), // decay_bps_per_day
-        tx.pure.u64(FLOOR), // floor
-        tx.pure.u64(CEIL), // ceil
-        tx.pure.u64(INIT_VALUE), // init_value
-        tx.object(CLOCK), // &Clock
       ],
     });
 
