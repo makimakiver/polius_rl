@@ -19,7 +19,7 @@ import { useWalletModal } from "./wallet";
 
 const PKG =
   process.env.NEXT_PUBLIC_PKG_ID ??
-  "0x7b65a4b95f21702c38289dd417bdb14bd20f4abfcd4ddf72a52ac83db482e844";
+  "0x149cff9273cd26d4c32fbf49ed38a239e5a936f37d65408e8659938d90173608";
 
 function truncate(a: string) {
   return `${a.slice(0, 6)}…${a.slice(-4)}`;

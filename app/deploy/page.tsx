@@ -15,7 +15,7 @@ const ALGOS = ["PPO", "SAC", "DQN", "Rainbow DQN", "A2C", "TD3", "Thompson Sampl
 
 const PKG =
   process.env.NEXT_PUBLIC_PKG_ID ??
-  "0x7b65a4b95f21702c38289dd417bdb14bd20f4abfcd4ddf72a52ac83db482e844";
+  "0x149cff9273cd26d4c32fbf49ed38a239e5a936f37d65408e8659938d90173608";
 const fieldCls =
   "w-full border border-ink/15 bg-white/60 px-3 py-2 text-sm outline-none transition-colors focus:border-accent placeholder:text-ink/30";
 const labelCls = "mb-1.5 block text-xs font-medium uppercase tracking-wide text-ink/50";
