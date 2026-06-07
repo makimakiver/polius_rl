@@ -1,8 +1,9 @@
-/// Phase 0 — world substrate: a lazy-accrual living world that ages and bites
-/// with zero agent intelligence.
+/// pols_contract v0.0.1 — the on-chain environment registry the frontend uses.
+/// A lazy-accrual living world that ages and bites, carrying Prime Intellect-
+/// style registry metadata (name/description/tags/artifact_uri).
 ///
 /// Ownership legend:
-///   `Environment`     -> shared   (the commons; many agents write it later)
+///   `Environment`     -> shared   (the commons; readable by anyone)
 ///   `EnvironmentCap`  -> key,store (owned, tradable authority over one world)
 ///
 /// Upgrade discipline (matches the project's `book::upgradable` rules):
@@ -34,9 +35,8 @@ public struct EnvironmentCap has key, store {
     env: ID,
 }
 
-/// The shared commons. Holds the decayable state, the real fee pool, and the
-/// legitimacy gate (filled in later phases). Kept deliberately thin: per-agent
-/// work will live on owned `EnvMembership` objects (Phase 1).
+/// The shared commons. Holds the registry metadata, the decayable state, and
+/// the real fee pool. This is the only on-chain contract the frontend talks to.
 public struct Environment has key {
     id: UID,
     owner: address,        // logical owner = the address that minted the cap
@@ -52,7 +52,7 @@ public struct Environment has key {
     epoch: u64,
     config: Config,
     fee_pool: Balance<SUI>, // real value, filled by activity fees later
-    legit_until: u64,       // 0 until Phase 5 (Nautilus legitimacy)
+    legit_until: u64,       // legitimacy gate; 0 until set by a later phase
     delisted: bool,         // set true by the lazy floor-breach consequence
 }
 
@@ -204,22 +204,6 @@ public fun apply_action(
 ) {
     assert_version(env);
     assert!(cap.env == object::id(env), E_WRONG_CAP);
-    settle_aging_internal(env, clock);
-    env.state = decay::apply_action_to_state(&env.state, action, &env.config);
-    check_threshold(env);
-    events::emit_world_updated(object::id(env), env.epoch, decay::value(&env.state));
-}
-
-/// Agent-authorized action path (Phase 1). Agents do not hold the
-/// `EnvironmentCap`; authority comes from a valid `EnvMembership`, which the
-/// caller (`agent::step`) verifies before calling this. `public(package)` so
-/// only modules in this package can reach it — and it may change on upgrade.
-public(package) fun apply_agent_action(
-    env: &mut Environment,
-    action: Action,
-    clock: &Clock,
-) {
-    assert_version(env);
     settle_aging_internal(env, clock);
     env.state = decay::apply_action_to_state(&env.state, action, &env.config);
     check_threshold(env);

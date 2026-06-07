@@ -114,11 +114,3 @@ public fun apply_action_to_state(s: &WorldState, a: Action, c: &Config): WorldSt
 public fun below_floor(s: &WorldState, c: &Config): bool {
     s.value < c.floor
 }
-
-/// The size of an action, used by agent risk caps (Phase 1).
-public fun magnitude(a: &Action): u64 {
-    match (a) {
-        Action::Replenish(amount) => *amount,
-        Action::Drain(amount) => *amount,
-    }
-}
