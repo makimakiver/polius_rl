@@ -42,6 +42,12 @@ export default function RegisterAgentFlow({ initialToken = "" }: { initialToken?
         setStatus("error");
         return;
       }
+      if (!json.address) {
+        // A verified token with no usable address can't yield a valid identity.
+        setError("token contains an invalid address");
+        setStatus("error");
+        return;
+      }
       setClaims({
         agent_name: json.agent_name,
         address: json.address,
