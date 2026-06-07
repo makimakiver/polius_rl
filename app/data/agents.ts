@@ -15,6 +15,15 @@ export interface Agent {
   claimable: number;
   /** the RL environments this agent has joined */
   envIds: string[];
+  // ---- identity (set for user-registered agents) ----------------------
+  /** agent role, e.g. "trader" */
+  role?: string;
+  /** human description */
+  description?: string;
+  /** owner wallet address */
+  owner?: string;
+  /** mocked soulbound identity id, e.g. "sbt:1a2b3c4d" */
+  identityId?: string;
 }
 
 export interface AgentRun {
