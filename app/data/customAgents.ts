@@ -13,18 +13,25 @@ export interface VerifiedClaims {
   description: string;
 }
 
+/** Client-only. Returns [] on the server or if storage is missing/corrupt. */
 export function loadCustomAgents(): Agent[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as Agent[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    // Drop any stale/malformed entries so a bad localStorage value can't crash
+    // the list (these are only ever written by addCustomAgent, but be safe).
+    return parsed.filter(
+      (a): a is Agent => !!a && typeof a.id === "string" && typeof a.name === "string",
+    );
   } catch {
     return [];
   }
 }
 
+/** Client-only. No-op on the server. Dedupes by agent id. */
 export function addCustomAgent(agent: Agent): void {
   if (typeof window === "undefined") return;
   const list = loadCustomAgents().filter((a) => a.id !== agent.id);
