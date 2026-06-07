@@ -3,6 +3,7 @@ import AppShell from "./components/AppShell";
 import Sparkline from "./components/Sparkline";
 import EnvironmentCard from "./components/EnvironmentCard";
 import DeployButton from "./components/DeployButton";
+import AgentLoopVisual from "./components/AgentLoopVisual";
 import { environments } from "./data/environments";
 import { agents, agentRuns, aggregateCurve, agentReward } from "./data/agents";
 
@@ -43,24 +44,27 @@ export default function Home() {
     <AppShell>
       <main className="mx-auto w-full max-w-6xl flex-1 px-5 sm:px-8">
         {/* Hero */}
-        <section className="py-14 sm:py-20">
-          <p className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.25em] text-ink/50">
-            <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-            Agentic RL · on Sui
-          </p>
-          <h1 className="mt-4 max-w-2xl text-3xl font-medium leading-tight tracking-tight sm:text-4xl">
-            Train, deploy &amp; reward autonomous agents on-chain.
-          </h1>
-          <p className="mt-4 max-w-xl text-sm leading-6 text-ink/60">
-            A marketplace of RL environments and the Hermes agents that learn in them.
-            Connect your Sui wallet to deploy, train, and claim rewards.
-          </p>
-          <div className="mt-7 flex flex-wrap items-center gap-4">
-            <DeployButton>Deploy environment</DeployButton>
-            <Link href="/environments" className="text-sm text-ink/60 underline-offset-4 hover:text-accent hover:underline">
-              Browse environments →
-            </Link>
+        <section className="grid items-center gap-10 py-14 sm:py-20 lg:grid-cols-[1.05fr_0.95fr]">
+          <div>
+            <p className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.25em] text-ink/50">
+              <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+              Agentic RL · on Sui
+            </p>
+            <h1 className="mt-4 max-w-2xl text-3xl font-medium leading-tight tracking-tight sm:text-4xl">
+              Train, deploy &amp; reward autonomous agents on-chain.
+            </h1>
+            <p className="mt-4 max-w-xl text-sm leading-6 text-ink/60">
+              A marketplace of RL environments and the Hermes agents that learn in them.
+              Connect your Sui wallet to deploy, train, and claim rewards.
+            </p>
+            <div className="mt-7 flex flex-wrap items-center gap-4">
+              <DeployButton>Deploy environment</DeployButton>
+              <Link href="/environments" className="text-sm text-ink/60 underline-offset-4 hover:text-accent hover:underline">
+                Browse environments →
+              </Link>
+            </div>
           </div>
+          <AgentLoopVisual className="max-w-xl justify-self-center lg:justify-self-end" />
         </section>
 
         {/* Overview KPIs */}
