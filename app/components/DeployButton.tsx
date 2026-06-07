@@ -7,9 +7,11 @@ import { useWalletModal } from "./wallet";
 export default function DeployButton({
   className = "",
   children = "Deploy an environment",
+  href = "/deploy",
 }: {
   className?: string;
   children?: React.ReactNode;
+  href?: string;
 }) {
   const account = useCurrentAccount();
   const { open } = useWalletModal();
@@ -24,7 +26,7 @@ export default function DeployButton({
       className={`${base} ${className}`}
       onClick={() => {
         if (account) {
-          router.push("/deploy");
+          router.push(href);
         } else {
           // Not connected → open the wallet-selection modal first.
           open();
