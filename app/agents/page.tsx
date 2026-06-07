@@ -8,7 +8,8 @@ import Sparkline from "../components/Sparkline";
 import AgentCard from "../components/AgentCard";
 import DeployButton from "../components/DeployButton";
 import { useWalletModal } from "../components/wallet";
-import { agents, agentRuns, aggregateCurve, agentReward, agentSuccess, type AgentStatus } from "../data/agents";
+import { agents, agentRuns, aggregateCurve, agentReward, agentSuccess, type AgentStatus, type Agent } from "../data/agents";
+import { loadCustomAgents } from "../data/customAgents";
 import { shortAddress } from "../data/environments";
 
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
@@ -25,13 +26,22 @@ export default function AgentsDashboard() {
   const account = useCurrentAccount();
   const { open } = useWalletModal();
 
-  // operational state
-  const [statuses, setStatuses] = useState<Record<string, AgentStatus>>(
-    Object.fromEntries(agents.map((a) => [a.id, a.status]))
+  // user-registered agents (mock, persisted in localStorage); loaded client-side
+  // lazy initializer runs only in the browser, avoiding hydration mismatch
+  const [custom] = useState<Agent[]>(() =>
+    typeof window !== "undefined" ? loadCustomAgents() : []
   );
-  const [claimable, setClaimable] = useState<Record<string, number>>(
-    Object.fromEntries(agents.map((a) => [a.id, a.claimable]))
-  );
+  const allAgents = useMemo(() => [...agents, ...custom], [custom]);
+
+  // operational state — seed custom agents first so existing mock keys win via spread order
+  const [statuses, setStatuses] = useState<Record<string, AgentStatus>>(() => ({
+    ...Object.fromEntries(custom.map((a) => [a.id, a.status])),
+    ...Object.fromEntries(agents.map((a) => [a.id, a.status])),
+  }));
+  const [claimable, setClaimable] = useState<Record<string, number>>(() => ({
+    ...Object.fromEntries(custom.map((a) => [a.id, a.claimable])),
+    ...Object.fromEntries(agents.map((a) => [a.id, a.claimable])),
+  }));
 
   // controls
   const [query, setQuery] = useState("");
@@ -40,11 +50,11 @@ export default function AgentsDashboard() {
 
   const enriched = useMemo(
     () =>
-      agents.map((a) => {
+      allAgents.map((a) => {
         const runs = agentRuns(a);
         return { agent: a, runs, reward: agentReward(runs), success: agentSuccess(runs) };
       }),
-    []
+    [allAgents]
   );
 
   const visible = enriched
@@ -58,13 +68,13 @@ export default function AgentsDashboard() {
     });
 
   const totalClaimable = Object.values(claimable).reduce((s, v) => s + v, 0);
-  const active = agents.filter((a) => statuses[a.id] === "Active").length;
+  const active = allAgents.filter((a) => statuses[a.id] === "Active").length;
   const totalReward = enriched.reduce((s, e) => s + e.reward, 0);
   const totalEnvs = enriched.reduce((s, e) => s + e.runs.length, 0);
   const avgSuccess = enriched.reduce((s, e) => s + e.success, 0) / enriched.length;
 
   const stats = [
-    { label: "Agents", value: num.format(agents.length) },
+    { label: "Agents", value: num.format(allAgents.length) },
     { label: "Active", value: num.format(active) },
     { label: "Env. joins", value: num.format(totalEnvs) },
     { label: "Total reward", value: `${compact.format(totalReward)} SUI` },
@@ -79,7 +89,7 @@ export default function AgentsDashboard() {
   };
   const claimAll = () => {
     if (!account) return open();
-    setClaimable(Object.fromEntries(agents.map((a) => [a.id, 0])));
+    setClaimable(Object.fromEntries(allAgents.map((a) => [a.id, 0])));
   };
 
   return (
@@ -110,7 +120,7 @@ export default function AgentsDashboard() {
               >
                 {account ? "Claim all" : "Connect to claim"}
               </button>
-              <DeployButton>+ New agent</DeployButton>
+              <DeployButton href="/agents/register">+ New agent</DeployButton>
             </div>
           </div>
         </header>
