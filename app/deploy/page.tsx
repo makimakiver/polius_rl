@@ -2,11 +2,28 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useCurrentAccount } from "@mysten/dapp-kit";
+import {
+  useCurrentAccount,
+  useSignAndExecuteTransaction,
+  useSuiClient,
+} from "@mysten/dapp-kit";
+import { Transaction } from "@mysten/sui/transactions";
 import AppShell from "../components/AppShell";
 import { useWalletModal } from "../components/wallet";
 
 const ALGOS = ["PPO", "SAC", "DQN", "Rainbow DQN", "A2C", "TD3", "Thompson Sampling"];
+
+const PKG =
+  process.env.NEXT_PUBLIC_PKG_ID ??
+  "0x7b65a4b95f21702c38289dd417bdb14bd20f4abfcd4ddf72a52ac83db482e844";
+const CLOCK = "0x6"; // shared system Clock object
+
+// Decay dynamics for the Phase-0 world substrate. Not part of the registry
+// metadata, so they use sensible fixed defaults here.
+const DECAY_BPS_PER_DAY = 100;
+const FLOOR = 0;
+const CEIL = 1000;
+const INIT_VALUE = 500;
 
 const fieldCls =
   "w-full border border-ink/15 bg-white/60 px-3 py-2 text-sm outline-none transition-colors focus:border-accent placeholder:text-ink/30";
@@ -18,7 +35,9 @@ function slugify(s: string) {
 
 export default function DeployPage() {
   const account = useCurrentAccount();
+  const client = useSuiClient();
   const { open } = useWalletModal();
+  const { mutate: signAndExecute, isPending } = useSignAndExecuteTransaction();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -29,7 +48,10 @@ export default function DeployPage() {
   const [gamma, setGamma] = useState("0.99");
   const [batch, setBatch] = useState("2048");
   const [tags, setTags] = useState("");
+  const [artifactUri, setArtifactUri] = useState("");
   const [deployed, setDeployed] = useState<string | null>(null);
+  const [digest, setDigest] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const id = useMemo(() => slugify(name) || "untitled-env", [name]);
   const canDeploy = name.trim().length > 1;
@@ -41,8 +63,50 @@ export default function DeployPage() {
       return;
     }
     if (!canDeploy) return;
-    // Sample UI — no on-chain transaction is sent.
-    setDeployed(id);
+    setError(null);
+
+    const tagList = tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+
+    const tx = new Transaction();
+    // create_world_entry(name, description, tags, artifact_uri,
+    //   decay_bps_per_day, floor, ceil, init_value, clock, ctx)
+    tx.moveCall({
+      target: `${PKG}::environment::create_world_entry`,
+      arguments: [
+        tx.pure.string(name.trim()), // name
+        tx.pure.string(description.trim()), // description
+        tx.pure.vector("string", tagList), // tags
+        tx.pure.string(artifactUri.trim()), // artifact_uri
+        tx.pure.u64(DECAY_BPS_PER_DAY), // decay_bps_per_day
+        tx.pure.u64(FLOOR), // floor
+        tx.pure.u64(CEIL), // ceil
+        tx.pure.u64(INIT_VALUE), // init_value
+        tx.object(CLOCK), // &Clock
+      ],
+    });
+
+    signAndExecute(
+      { transaction: tx },
+      {
+        onSuccess: async ({ digest }) => {
+          setDigest(digest);
+          await client.waitForTransaction({ digest });
+          setDeployed(id);
+        },
+        onError: (e) => {
+          console.error("[deploy] tx failed:", e);
+          const msg = e instanceof Error ? e.message : String(e);
+          setError(
+            /gas|balance|insufficient/i.test(msg)
+              ? "No gas — this address has 0 SUI. Fund it from the testnet faucet, or wire up Enoki sponsored transactions."
+              : msg,
+          );
+        },
+      },
+    );
   };
 
   return (
@@ -74,7 +138,7 @@ export default function DeployPage() {
         )}
 
         {deployed ? (
-          <DeployedSuccess id={deployed} name={name} />
+          <DeployedSuccess id={deployed} name={name} digest={digest} />
         ) : (
           <div className="mt-8 grid gap-8 lg:grid-cols-[1.5fr_1fr]">
             {/* form */}
@@ -154,17 +218,43 @@ export default function DeployPage() {
                 />
               </Section>
 
-              <div className="flex items-center gap-4 border-t border-ink/15 pt-6">
-                <button
-                  type="submit"
-                  disabled={!!account && !canDeploy}
-                  className="bg-ink px-5 py-2.5 text-sm font-medium text-background transition-colors hover:bg-black disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {account ? "Deploy environment" : "Connect to deploy"}
-                </button>
-                <Link href="/" className="text-sm text-ink/50 underline-offset-4 hover:underline">
-                  Cancel
-                </Link>
+              <Section title="Artifact">
+                <div>
+                  <label className={labelCls}>Artifact URI</label>
+                  <input
+                    className={fieldCls}
+                    value={artifactUri}
+                    onChange={(e) => setArtifactUri(e.target.value)}
+                    placeholder="walrus://… · ipfs://… · https://…"
+                  />
+                  <p className="mt-1 text-[11px] text-ink/40">
+                    Pointer to the off-chain env package, dataset &amp; reward code.
+                  </p>
+                </div>
+              </Section>
+
+              <div className="flex flex-col gap-3 border-t border-ink/15 pt-6">
+                <div className="flex items-center gap-4">
+                  <button
+                    type="submit"
+                    disabled={isPending || (!!account && !canDeploy)}
+                    className="bg-ink px-5 py-2.5 text-sm font-medium text-background transition-colors hover:bg-black disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {isPending
+                      ? "Deploying…"
+                      : account
+                        ? "Deploy environment"
+                        : "Connect to deploy"}
+                  </button>
+                  <Link href="/" className="text-sm text-ink/50 underline-offset-4 hover:underline">
+                    Cancel
+                  </Link>
+                </div>
+                {error && (
+                  <p className="border border-rose-500/30 bg-rose-500/[0.06] px-4 py-3 text-xs text-rose-600">
+                    {error}
+                  </p>
+                )}
               </div>
             </form>
 
@@ -192,8 +282,8 @@ export default function DeployPage() {
               </div>
               <ul className="mt-4 space-y-1.5 text-xs text-ink/45">
                 <li>· Settles on Sui Testnet</li>
-                <li>· Hyperparameters are stored with the environment</li>
-                <li>· Sample UI — no transaction is broadcast</li>
+                <li>· Name, description, tags &amp; artifact pointer are stored on-chain</li>
+                <li>· Broadcasts a real create_world_entry transaction</li>
               </ul>
             </aside>
           </div>
@@ -219,7 +309,15 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function DeployedSuccess({ id, name }: { id: string; name: string }) {
+function DeployedSuccess({
+  id,
+  name,
+  digest,
+}: {
+  id: string;
+  name: string;
+  digest: string | null;
+}) {
   return (
     <div className="mt-10 border border-ink/15 bg-white/50 p-8 text-center">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent/15 text-accent">
@@ -229,9 +327,19 @@ function DeployedSuccess({ id, name }: { id: string; name: string }) {
       </div>
       <h2 className="mt-4 text-xl font-medium tracking-tight">Environment deployed</h2>
       <p className="mt-2 text-sm text-ink/60">
-        <span className="font-medium text-ink">{name || "Your environment"}</span> is registered.
+        <span className="font-medium text-ink">{name || "Your environment"}</span> is registered on Sui.
       </p>
       <p className="mt-1 font-mono text-xs text-ink/40">id: {id}</p>
+      {digest && (
+        <a
+          href={`https://suiscan.xyz/testnet/tx/${digest}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2 inline-block break-all font-mono text-xs text-accent underline-offset-4 hover:underline"
+        >
+          {digest} ↗
+        </a>
+      )}
       <div className="mt-6 flex items-center justify-center gap-3">
         <Link href="/" className="bg-ink px-5 py-2.5 text-sm font-medium text-background transition-colors hover:bg-black">
           View dashboard

@@ -19,7 +19,7 @@ import { useWalletModal } from "./wallet";
 
 const PKG =
   process.env.NEXT_PUBLIC_PKG_ID ??
-  "0xa37ee614403be7c4545d1175424954e8617d63f75a57a1d779259db72a5e4e09";
+  "0x7b65a4b95f21702c38289dd417bdb14bd20f4abfcd4ddf72a52ac83db482e844";
 const CLOCK = "0x6"; // shared system Clock object
 
 function truncate(a: string) {
@@ -47,11 +47,17 @@ export default function ContractDemo() {
     setError(null);
 
     const tx = new Transaction();
-    // create_world_entry(decay_bps_per_day, floor, ceil, init_value, clock, ctx)
-    // Real published entry — demonstrates an actual on-chain Move call.
+    // create_world_entry(name, description, tags, artifact_uri,
+    //   decay_bps_per_day, floor, ceil, init_value, clock, ctx)
+    // One-click demo with placeholder metadata. The real registry form lives
+    // on /deploy.
     tx.moveCall({
       target: `${PKG}::environment::create_world_entry`,
       arguments: [
+        tx.pure.string("demo-env"), // name
+        tx.pure.string("one-click contract demo"), // description
+        tx.pure.vector("string", ["demo"]), // tags
+        tx.pure.string(""), // artifact_uri
         tx.pure.u64(100), // decay_bps_per_day
         tx.pure.u64(0), // floor
         tx.pure.u64(1000), // ceil

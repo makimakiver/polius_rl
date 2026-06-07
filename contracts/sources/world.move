@@ -12,6 +12,7 @@
 ///     cap-gated `migrate` bumps the version after a package upgrade.
 module pols_core::environment;
 
+use std::string::String;
 use sui::balance::{Self, Balance};
 use sui::clock::Clock;
 use sui::sui::SUI;
@@ -39,6 +40,12 @@ public struct EnvironmentCap has key, store {
 public struct Environment has key {
     id: UID,
     owner: address,        // logical owner = the address that minted the cap
+    // ---- Prime Intellect-style registry metadata (Slice 1) --------------
+    name: String,          // registry identity, e.g. "automationbench"
+    description: String,   // short human summary
+    tags: vector<String>,  // categorization, e.g. ["single-turn", "toy"]
+    artifact_uri: String,  // pointer to the off-chain env package + dataset
+                           // + reward code (Walrus/IPFS/HTTPS)
     version: u64,
     state: WorldState,
     last_touched: u64,     // ms, from Clock
@@ -51,19 +58,32 @@ public struct Environment has key {
 
 // ---- creation -----------------------------------------------------------
 
-/// Create a world, share it, and return its authority cap to the caller.
+/// Create a world with its registry metadata, share it, and return its
+/// authority cap to the caller.
 public fun create_world(
+    name: String,
+    description: String,
+    tags: vector<String>,
+    artifact_uri: String,
     config: Config,
     init_value: u64,
     clock: &Clock,
     ctx: &mut TxContext,
 ): EnvironmentCap {
-    create_world_internal(config, init_value, clock, ctx)
+    create_world_internal(
+        name, description, tags, artifact_uri,
+        config, init_value, clock, ctx,
+    )
 }
 
 /// Convenience entry: builds the config from scalars, shares the world, and
 /// sends the cap to the sender. `entry`/non-public, so it may change on upgrade.
+/// Metadata args come first, then the decay scalars.
 entry fun create_world_entry(
+    name: String,
+    description: String,
+    tags: vector<String>,
+    artifact_uri: String,
     decay_bps_per_day: u64,
     floor: u64,
     ceil: u64,
@@ -72,11 +92,18 @@ entry fun create_world_entry(
     ctx: &mut TxContext,
 ) {
     let config = decay::new_config(decay_bps_per_day, floor, ceil);
-    let cap = create_world_internal(config, init_value, clock, ctx);
+    let cap = create_world_internal(
+        name, description, tags, artifact_uri,
+        config, init_value, clock, ctx,
+    );
     transfer::public_transfer(cap, ctx.sender());
 }
 
 fun create_world_internal(
+    name: String,
+    description: String,
+    tags: vector<String>,
+    artifact_uri: String,
     config: Config,
     init_value: u64,
     clock: &Clock,
@@ -86,6 +113,10 @@ fun create_world_internal(
     let env = Environment {
         id: object::new(ctx),
         owner,
+        name,
+        description,
+        tags,
+        artifact_uri,
         version: VERSION,
         state: decay::new_state(init_value),
         last_touched: clock.timestamp_ms(),
@@ -98,8 +129,47 @@ fun create_world_internal(
     let env_id = object::id(&env);
     let cap = EnvironmentCap { id: object::new(ctx), env: env_id };
     events::emit_world_created(env_id, owner);
+    events::emit_env_registered(
+        env_id, owner, env.name, env.description, env.tags, env.artifact_uri,
+    );
     transfer::share_object(env);
     cap
+}
+
+// ---- registry metadata mutation (cap-gated) -----------------------------
+
+/// Update the descriptive metadata (name/description/tags). Cap-gated; the
+/// artifact pointer is untouched. Mirrors a Prime Intellect re-describe.
+public fun update_metadata(
+    env: &mut Environment,
+    cap: &EnvironmentCap,
+    name: String,
+    description: String,
+    tags: vector<String>,
+) {
+    assert_version(env);
+    assert!(cap.env == object::id(env), E_WRONG_CAP);
+    env.name = name;
+    env.description = description;
+    env.tags = tags;
+    events::emit_env_metadata_updated(
+        object::id(env), env.name, env.description, env.tags, env.artifact_uri,
+    );
+}
+
+/// Publish a new artifact pointer (uri). Cap-gated; the descriptive fields are
+/// untouched. Mirrors a Prime Intellect re-publish.
+public fun publish_artifact(
+    env: &mut Environment,
+    cap: &EnvironmentCap,
+    artifact_uri: String,
+) {
+    assert_version(env);
+    assert!(cap.env == object::id(env), E_WRONG_CAP);
+    env.artifact_uri = artifact_uri;
+    events::emit_env_metadata_updated(
+        object::id(env), env.name, env.description, env.tags, env.artifact_uri,
+    );
 }
 
 /// No-op demo entry. Does nothing on-chain — exists purely so the frontend can
@@ -194,6 +264,14 @@ public fun migrate(env: &mut Environment, cap: &EnvironmentCap) {
 public fun epoch(env: &Environment): u64 { env.epoch }
 
 public fun owner(env: &Environment): address { env.owner }
+
+public fun name(env: &Environment): String { env.name }
+
+public fun description(env: &Environment): String { env.description }
+
+public fun tags(env: &Environment): vector<String> { env.tags }
+
+public fun artifact_uri(env: &Environment): String { env.artifact_uri }
 
 public fun legit_until(env: &Environment): u64 { env.legit_until }
 

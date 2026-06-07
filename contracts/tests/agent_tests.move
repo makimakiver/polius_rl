@@ -1,10 +1,11 @@
 #[test_only]
 module pols_core::agent_tests;
 
+use std::string;
 use sui::clock;
 use sui::test_scenario as ts;
 use pols_core::decay;
-use pols_core::world::{Self, Environment};
+use pols_core::environment::{Self as world, Environment};
 use pols_core::agent::{Self, AgentBook, AgentSBT, EnvMembership};
 
 const ALICE: address = @0xA11CE;
@@ -13,7 +14,10 @@ const BOB: address = @0xB0B;
 // Spin up a world and an AgentBook, returning to a fresh tx ready to act.
 fun setup(sc: &mut ts::Scenario, clk: &clock::Clock) {
     agent::init_for_testing(sc.ctx());
-    let cap = world::create_world(decay::new_config(0, 0, 1_000_000), 1_000, clk, sc.ctx());
+    let cap = world::create_world(
+        string::utf8(b"w"), string::utf8(b""), vector[], string::utf8(b""),
+        decay::new_config(0, 0, 1_000_000), 1_000, clk, sc.ctx(),
+    );
     transfer::public_transfer(cap, ALICE);
 }
 
