@@ -37,21 +37,6 @@ public struct EnvMetadataUpdated has copy, drop {
     artifact_uri: String,
 }
 
-/// Emitted whenever a world's commons is mutated (action applied, etc.).
-public struct WorldUpdated has copy, drop {
-    env: ID,
-    epoch: u64,
-    value: u64,
-}
-
-/// Emitted when a lazy consequence fires. `kind` discriminates the cause:
-/// 0 = decayed below floor (delist).
-public struct ConsequenceTriggered has copy, drop {
-    env: ID,
-    epoch: u64,
-    kind: u8,
-}
-
 public(package) fun emit_world_created(env: ID, owner: address) {
     event::emit(WorldCreated { env, owner });
 }
@@ -79,12 +64,4 @@ public(package) fun emit_env_metadata_updated(
     event::emit(EnvMetadataUpdated {
         env, name, description, tags, artifact_uri,
     });
-}
-
-public(package) fun emit_world_updated(env: ID, epoch: u64, value: u64) {
-    event::emit(WorldUpdated { env, epoch, value });
-}
-
-public(package) fun emit_consequence(env: ID, epoch: u64, kind: u8) {
-    event::emit(ConsequenceTriggered { env, epoch, kind });
 }

@@ -1,6 +1,7 @@
-/// pols_contract v0.0.1 — the on-chain environment registry the frontend uses.
-/// A lazy-accrual living world that ages and bites, carrying Prime Intellect-
-/// style registry metadata (name/description/tags/artifact_uri).
+/// pols_core v0.0.1 — the on-chain environment registry the frontend uses.
+/// An `Environment` is a plain on-chain object representing a registered RL
+/// environment, carrying Prime Intellect-style registry metadata
+/// (name/description/tags/artifact_uri) plus a fee pool.
 ///
 /// Ownership legend:
 ///   `Environment`     -> shared   (the commons; readable by anyone)
@@ -15,9 +16,7 @@ module pols_core::environment;
 
 use std::string::String;
 use sui::balance::{Self, Balance};
-use sui::clock::Clock;
 use sui::sui::SUI;
-use pols_core::decay::{Self, WorldState, Config, Action};
 use pols_core::events;
 
 /// Current on-chain logic version. Bump on each breaking package upgrade.
@@ -35,8 +34,8 @@ public struct EnvironmentCap has key, store {
     env: ID,
 }
 
-/// The shared commons. Holds the registry metadata, the decayable state, and
-/// the real fee pool. This is the only on-chain contract the frontend talks to.
+/// The shared commons. Holds the registry metadata and the real fee pool. This
+/// is the only on-chain contract the frontend talks to.
 public struct Environment has key {
     id: UID,
     owner: address,        // logical owner = the address that minted the cap
@@ -47,13 +46,8 @@ public struct Environment has key {
     artifact_uri: String,  // pointer to the off-chain env package + dataset
                            // + reward code (Walrus/IPFS/HTTPS)
     version: u64,
-    state: WorldState,
-    last_touched: u64,     // ms, from Clock
-    epoch: u64,
-    config: Config,
     fee_pool: Balance<SUI>, // real value, filled by activity fees later
     legit_until: u64,       // legitimacy gate; 0 until set by a later phase
-    delisted: bool,         // set true by the lazy floor-breach consequence
 }
 
 // ---- creation -----------------------------------------------------------
@@ -65,37 +59,21 @@ public fun create_world(
     description: String,
     tags: vector<String>,
     artifact_uri: String,
-    config: Config,
-    init_value: u64,
-    clock: &Clock,
     ctx: &mut TxContext,
 ): EnvironmentCap {
-    create_world_internal(
-        name, description, tags, artifact_uri,
-        config, init_value, clock, ctx,
-    )
+    create_world_internal(name, description, tags, artifact_uri, ctx)
 }
 
-/// Convenience entry: builds the config from scalars, shares the world, and
-/// sends the cap to the sender. `entry`/non-public, so it may change on upgrade.
-/// Metadata args come first, then the decay scalars.
+/// Convenience entry: shares the world and sends the cap to the sender.
+/// `entry`/non-public, so it may change on upgrade.
 entry fun create_world_entry(
     name: String,
     description: String,
     tags: vector<String>,
     artifact_uri: String,
-    decay_bps_per_day: u64,
-    floor: u64,
-    ceil: u64,
-    init_value: u64,
-    clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    let config = decay::new_config(decay_bps_per_day, floor, ceil);
-    let cap = create_world_internal(
-        name, description, tags, artifact_uri,
-        config, init_value, clock, ctx,
-    );
+    let cap = create_world_internal(name, description, tags, artifact_uri, ctx);
     transfer::public_transfer(cap, ctx.sender());
 }
 
@@ -104,9 +82,6 @@ fun create_world_internal(
     description: String,
     tags: vector<String>,
     artifact_uri: String,
-    config: Config,
-    init_value: u64,
-    clock: &Clock,
     ctx: &mut TxContext,
 ): EnvironmentCap {
     let owner = ctx.sender();
@@ -118,13 +93,8 @@ fun create_world_internal(
         tags,
         artifact_uri,
         version: VERSION,
-        state: decay::new_state(init_value),
-        last_touched: clock.timestamp_ms(),
-        epoch: 0,
-        config,
         fee_pool: balance::zero<SUI>(),
         legit_until: 0,
-        delisted: false,
     };
     let env_id = object::id(&env);
     let cap = EnvironmentCap { id: object::new(ctx), env: env_id };
@@ -177,58 +147,6 @@ public fun publish_artifact(
 /// and normal wallets). Not published until you rebuild + publish the package.
 entry fun ping(_ctx: &TxContext) {}
 
-// ---- read path (lazy, no write, no gas beyond RPC) ----------------------
-
-/// Lazily derive the world's true current value as a pure function of time.
-/// Equal to `{ settle_aging(env, clock); state }` for the same `clock` reading.
-public fun read_value(env: &Environment, clock: &Clock): WorldState {
-    decay::decay(&env.state, clock.timestamp_ms() - env.last_touched, &env.config)
-}
-
-// ---- write path ---------------------------------------------------------
-
-/// Settle elapsed aging into stored state, then run the lazy consequence check.
-/// Idempotent within a single `clock` reading (second call sees `dt == 0`).
-public fun settle_aging(env: &mut Environment, clock: &Clock) {
-    assert_version(env);
-    settle_aging_internal(env, clock);
-}
-
-/// Authorized actor applies an action: settle aging first, then mutate, then
-/// check the threshold (lazy consequence), then emit. Cap-gated, not sender.
-public fun apply_action(
-    env: &mut Environment,
-    cap: &EnvironmentCap,
-    action: Action,
-    clock: &Clock,
-) {
-    assert_version(env);
-    assert!(cap.env == object::id(env), E_WRONG_CAP);
-    settle_aging_internal(env, clock);
-    env.state = decay::apply_action_to_state(&env.state, action, &env.config);
-    check_threshold(env);
-    events::emit_world_updated(object::id(env), env.epoch, decay::value(&env.state));
-}
-
-fun settle_aging_internal(env: &mut Environment, clock: &Clock) {
-    let now = clock.timestamp_ms();
-    let dt = now - env.last_touched;
-    if (dt > 0) {
-        env.state = decay::decay(&env.state, dt, &env.config);
-        env.last_touched = now;
-        check_threshold(env);
-    }
-}
-
-/// Lazy keeper: the consequence fires the first time the world is touched after
-/// it has decayed below the floor. Idempotent via the `delisted` latch.
-fun check_threshold(env: &mut Environment) {
-    if (!env.delisted && decay::below_floor(&env.state, &env.config)) {
-        env.delisted = true;
-        events::emit_consequence(object::id(env), env.epoch, 0);
-    }
-}
-
 // ---- upgrade plumbing ---------------------------------------------------
 
 fun assert_version(env: &Environment) {
@@ -245,8 +163,6 @@ public fun migrate(env: &mut Environment, cap: &EnvironmentCap) {
 
 // ---- views --------------------------------------------------------------
 
-public fun epoch(env: &Environment): u64 { env.epoch }
-
 public fun owner(env: &Environment): address { env.owner }
 
 public fun name(env: &Environment): String { env.name }
@@ -259,13 +175,6 @@ public fun artifact_uri(env: &Environment): String { env.artifact_uri }
 
 public fun legit_until(env: &Environment): u64 { env.legit_until }
 
-public fun is_delisted(env: &Environment): bool { env.delisted }
-
 public fun version(env: &Environment): u64 { env.version }
 
-public fun last_touched(env: &Environment): u64 { env.last_touched }
-
 public fun fee_pool_value(env: &Environment): u64 { balance::value(&env.fee_pool) }
-
-/// The *stored* (last-settled) value. For the live value use `read_value`.
-public fun state_value(env: &Environment): u64 { decay::value(&env.state) }
