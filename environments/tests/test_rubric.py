@@ -1,8 +1,8 @@
 from pathlib import Path
 import sys
 
-# import the single-module env package directly from ../sort-list/
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "sort-list"))
+# import the single-module env package directly from ../sort_list/
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "sort_list"))
 
 from sort_list import _parse_ints, exact_match, partial_ratio  # noqa: E402
 

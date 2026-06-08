@@ -10,12 +10,11 @@ deterministic (exact match, with a difflib partial-credit metric).
 ```bash
 cd environments
 uv sync --group dev
-uv pip install -e sort-list/
+uv run vf-install sort-list -p .
 ```
 
-> **Note:** `vf-install sort-list -p .` normalises `sort-list` → `sort_list` when
-> resolving the local path, so the hyphenated directory name causes it to fail.
-> Use `uv pip install -e sort-list/` instead (equivalent editable install).
+(`vf-install` normalises the env id to `sort_list` and installs the package in
+`environments/sort_list/`.)
 
 ### Determinism check (no model, no API key, no GPU)
 
