@@ -29,6 +29,12 @@ def test_exact_match_empty_output():
     assert exact_match(_completion(""), "1 2 3") == 0.0
 
 
+def test_rubric_handles_aborted_rollout_empty_completion():
+    # An aborted/errored rollout yields an empty completion list — score 0, don't raise.
+    assert exact_match([], "1 2 3") == 0.0
+    assert partial_ratio([], "1 2 3") == 0.0
+
+
 def test_partial_ratio_between():
     r = partial_ratio(_completion("1 2 9"), "1 2 3")
     assert 0.0 < r < 1.0

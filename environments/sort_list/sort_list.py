@@ -21,6 +21,18 @@ def _parse_ints(text: str) -> list[int]:
     return [int(x) for x in re.findall(r"-?\d+", text or "")]
 
 
+def _last_content(completion) -> str:
+    """Final assistant message content, or "" if the rollout produced nothing.
+
+    Guards against an empty completion (e.g. an aborted/errored rollout) and a
+    non-dict last turn, so reward funcs score 0 instead of raising.
+    """
+    if not completion:
+        return ""
+    last = completion[-1]
+    return (last.get("content") or "") if isinstance(last, dict) else str(last)
+
+
 def exact_match(completion, answer, **kwargs) -> float:
     """1.0 iff the model's integer sequence equals the sorted answer, else 0.0.
 
@@ -28,7 +40,7 @@ def exact_match(completion, answer, **kwargs) -> float:
     surrounding prose (extract-then-compare), so the score depends only on the
     integer sequence, not on exact formatting.
     """
-    got = _parse_ints(completion[-1]["content"])
+    got = _parse_ints(_last_content(completion))
     want = _parse_ints(answer)
     return 1.0 if got == want else 0.0
 
@@ -40,7 +52,7 @@ def partial_ratio(completion, answer, **kwargs) -> float:
     forms, so the score reflects how many integers are in the right position and
     is independent of digit width.
     """
-    got = _parse_ints(completion[-1]["content"])
+    got = _parse_ints(_last_content(completion))
     want = _parse_ints(answer)
     if not want:
         return 0.0
