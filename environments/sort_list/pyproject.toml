@@ -3,7 +3,7 @@ name = "sort-list"
 version = "0.1.0"
 description = "Toy list-sorting verifiers environment"
 requires-python = ">=3.11"
-dependencies = ["verifiers", "datasets"]
+dependencies = ["verifiers>=0.1.10", "datasets"]
 
 [build-system]
 requires = ["hatchling"]
