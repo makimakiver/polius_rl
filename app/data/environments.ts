@@ -163,7 +163,5 @@ export function getEnvironment(id: string): RlEnvironment | undefined {
   return environments.find((env) => env.id === id);
 }
 
-export function shortAddress(address: string, lead = 6, tail = 4): string {
-  if (address.length <= lead + tail) return address;
-  return `${address.slice(0, lead)}…${address.slice(-tail)}`;
-}
+// Re-exported for back-compat; the implementation now lives in lib/format.
+export { shortAddress } from "../lib/format";

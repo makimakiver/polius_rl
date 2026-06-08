@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useWalletModal } from "./wallet";
+import { btnPrimary } from "./ui";
 
 export default function DeployButton({
   className = "",
@@ -17,8 +18,7 @@ export default function DeployButton({
   const { open } = useWalletModal();
   const router = useRouter();
 
-  const base =
-    "inline-flex items-center justify-center gap-2 rounded-full border border-ink bg-ink px-5 py-2.5 text-sm font-medium text-background transition-colors hover:bg-transparent hover:text-ink";
+  const base = `inline-flex items-center justify-center gap-2 ${btnPrimary}`;
 
   return (
     <button

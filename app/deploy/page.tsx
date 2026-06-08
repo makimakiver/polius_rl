@@ -10,15 +10,14 @@ import {
 import { Transaction } from "@mysten/sui/transactions";
 import AppShell from "../components/AppShell";
 import { useWalletModal } from "../components/wallet";
+import { fieldCls, labelCls } from "../components/ui";
+import { shortAddress } from "../lib/format";
 
 const ALGOS = ["PPO", "SAC", "DQN", "Rainbow DQN", "A2C", "TD3", "Thompson Sampling"];
 
 const PKG =
   process.env.NEXT_PUBLIC_PKG_ID ??
   "0x149cff9273cd26d4c32fbf49ed38a239e5a936f37d65408e8659938d90173608";
-const fieldCls =
-  "w-full border border-ink/15 bg-white/60 px-3 py-2 text-sm outline-none transition-colors focus:border-accent placeholder:text-ink/30";
-const labelCls = "mb-1.5 block text-xs font-medium uppercase tracking-wide text-ink/50";
 
 function slugify(s: string) {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -262,7 +261,7 @@ export default function DeployPage() {
                   <span>{observation} → {action}</span>
                 </div>
                 <div className="mt-2 font-mono text-[11px] text-ink/40">
-                  by {account ? `${account.address.slice(0, 6)}…${account.address.slice(-4)}` : "— connect wallet"}
+                  by {account ? shortAddress(account.address) : "— connect wallet"}
                 </div>
               </div>
               <ul className="mt-4 space-y-1.5 text-xs text-ink/45">

@@ -7,11 +7,8 @@ import AppShell from "../../components/AppShell";
 import { useWalletModal } from "../../components/wallet";
 import { shortAddress } from "../../data/environments";
 import { agentFromClaims, addCustomAgent, type VerifiedClaims } from "../../data/customAgents";
-import OnboardAgentCard from "./OnboardAgentCard";
-
-const fieldCls =
-  "w-full border border-ink/15 bg-white/60 px-3 py-2 text-sm outline-none transition-colors focus:border-accent placeholder:text-ink/30";
-const labelCls = "mb-1.5 block text-xs font-medium uppercase tracking-wide text-ink/50";
+import { fieldCls, labelCls, btnPrimary } from "../../components/ui";
+import JoinPoliusModal from "./JoinPoliusModal";
 
 type Status = "idle" | "verifying" | "verified" | "issued" | "error";
 
@@ -84,7 +81,7 @@ export default function RegisterAgentFlow({ initialToken = "" }: { initialToken?
           identity is bound to your wallet and cannot be transferred.
         </p>
 
-        {!initialToken && <OnboardAgentCard />}
+        {!initialToken && <JoinPoliusModal />}
 
         {/* Step 1 — token */}
         <section className="mt-8 rounded-xl border border-ink/15 p-5">
@@ -111,7 +108,7 @@ export default function RegisterAgentFlow({ initialToken = "" }: { initialToken?
               type="button"
               onClick={verify}
               disabled={verifyDisabled}
-              className="rounded-full border border-ink bg-ink px-5 py-2.5 text-sm font-medium text-background transition-colors hover:bg-transparent hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+              className={`${btnPrimary} disabled:cursor-not-allowed disabled:opacity-40`}
             >
               {status === "verifying" ? "Verifying…" : account ? "Verify token" : "Connect wallet"}
             </button>

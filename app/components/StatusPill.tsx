@@ -6,11 +6,16 @@ const fill: Record<EnvStatus, string> = {
   Idle: "bg-transparent border border-ink/40",
 };
 
-export default function StatusPill({ status }: { status: EnvStatus }) {
+/** Dot + uppercase label atom. Callers supply the dot color class. */
+export function StatusDot({ label, dotClass }: { label: string; dotClass: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-ink/60">
-      <span className={`h-1.5 w-1.5 rounded-full ${fill[status]}`} />
-      {status}
+      <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
+      {label}
     </span>
   );
+}
+
+export default function StatusPill({ status }: { status: EnvStatus }) {
+  return <StatusDot label={status} dotClass={fill[status]} />;
 }

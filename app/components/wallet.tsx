@@ -7,7 +7,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { createPortal } from "react-dom";
 import {
   useWallets,
   useConnectWallet,
@@ -16,6 +15,8 @@ import {
 } from "@mysten/dapp-kit";
 import type { WalletWithRequiredFeatures } from "@mysten/wallet-standard";
 import { isEnokiWallet, type AuthProvider } from "@mysten/enoki";
+import { Modal, CloseButton } from "./Modal";
+import { shortAddress } from "../lib/format";
 
 /* ------------------------------------------------------------------ */
 /* Modal open/close context so the sidebar button + Deploy CTA share it */
@@ -41,10 +42,6 @@ export function WalletModalProvider({ children }: { children: ReactNode }) {
       <WalletModal />
     </WalletModalContext.Provider>
   );
-}
-
-function truncate(addr: string) {
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -100,17 +97,13 @@ function WalletModal() {
   const { mutate: connect } = useConnectWallet();
   const [connecting, setConnecting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => setMounted(true), []);
   useEffect(() => {
     if (!isOpen) {
       setConnecting(null);
       setError(null);
     }
   }, [isOpen]);
-
-  if (!mounted || !isOpen) return null;
 
   const handleConnect = (wallet: WalletWithRequiredFeatures) => {
     setConnecting(wallet.name);
@@ -133,15 +126,8 @@ function WalletModal() {
     );
   };
 
-  return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      {/* overlay */}
-      <button
-        aria-label="Close"
-        onClick={close}
-        className="wm-overlay absolute inset-0 bg-black/55 backdrop-blur-[3px]"
-      />
-
+  return (
+    <Modal open={isOpen} onClose={close}>
       {/* panel */}
       <div className="wm-panel relative w-full max-w-sm border border-ink/15 bg-background shadow-2xl">
         {/* header */}
@@ -152,15 +138,7 @@ function WalletModal() {
             </h2>
             <p className="mt-1 text-xs text-ink/50">Select a Sui wallet to continue</p>
           </div>
-          <button
-            onClick={close}
-            aria-label="Close"
-            className="flex h-7 w-7 items-center justify-center border border-ink/15 text-ink/60 transition-colors hover:border-ink hover:text-ink"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M6 6l12 12M18 6L6 18" />
-            </svg>
-          </button>
+          <CloseButton onClick={close} />
         </div>
 
         {/* sky accent rule */}
@@ -253,8 +231,7 @@ function WalletModal() {
           </p>
         </div>
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 }
 
@@ -297,7 +274,7 @@ export function WalletButton({ compact = false }: { compact?: boolean }) {
         <button
           onClick={() => setMenu((v) => !v)}
           title={account.address}
-          aria-label={`Account ${truncate(account.address)}`}
+          aria-label={`Account ${shortAddress(account.address)}`}
           className="relative flex h-10 w-10 items-center justify-center rounded-full bg-ink font-mono text-xs font-semibold uppercase text-background transition-colors hover:bg-black"
         >
           {account.address.slice(2, 4)}
@@ -308,7 +285,7 @@ export function WalletButton({ compact = false }: { compact?: boolean }) {
             <button className="fixed inset-0 z-10 cursor-default" onClick={() => setMenu(false)} aria-hidden />
             <div className="absolute bottom-0 left-full z-20 ml-2 w-44 border border-ink/15 bg-background shadow-lg">
               <div className="border-b border-ink/10 px-4 py-2.5 font-mono text-xs text-ink/60">
-                {truncate(account.address)}
+                {shortAddress(account.address)}
               </div>
               <button
                 onClick={() => {
@@ -352,7 +329,7 @@ export function WalletButton({ compact = false }: { compact?: boolean }) {
         onClick={() => setMenu((v) => !v)}
         className="flex w-full items-center justify-between gap-2 bg-ink px-4 py-2.5 text-sm font-medium text-background transition-colors hover:bg-black"
       >
-        <span className="font-mono">{truncate(account.address)}</span>
+        <span className="font-mono">{shortAddress(account.address)}</span>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="m6 9 6 6 6-6" />
         </svg>
