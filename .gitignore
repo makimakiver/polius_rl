@@ -42,7 +42,8 @@ next-env.d.ts
 
 # Python / verifiers environments
 environments/.venv/
-environments/.env
+environments/.env*
+!environments/.env.example
 environments/**/__pycache__/
 environments/**/*.egg-info/
 environments/outputs/
