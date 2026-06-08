@@ -36,3 +36,13 @@ def test_partial_ratio_between():
 
 def test_partial_ratio_perfect():
     assert partial_ratio(_completion("1 2 3"), "1 2 3") == 1.0
+
+
+def test_partial_ratio_empty_output():
+    assert partial_ratio(_completion(""), "1 2 3") == 0.0
+
+
+def test_partial_ratio_is_element_level_not_char_level():
+    # [12, 3] vs [1, 23] share NO integers → 0.0 at the element level.
+    # (A char-level SequenceMatcher on "12 3"/"1 23" would wrongly score high.)
+    assert partial_ratio(_completion("12 3"), "1 23") == 0.0
