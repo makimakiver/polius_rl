@@ -5,7 +5,11 @@ ascending order, space-separated. Scoring is deterministic.
 """
 
 import difflib
+import random
 import re
+
+import verifiers as vf
+from datasets import Dataset
 
 SYSTEM_PROMPT = (
     "You sort lists of integers. Given a list, reply with ONLY the integers "
@@ -41,3 +45,36 @@ def partial_ratio(completion, answer, **kwargs) -> float:
     if not want:
         return 0.0
     return difflib.SequenceMatcher(None, got, want).ratio()
+
+
+def _build_dataset(num_examples: int, list_len: int, seed: int, low: int, high: int) -> Dataset:
+    rng = random.Random(seed)
+    rows = []
+    for _ in range(num_examples):
+        nums = [rng.randint(low, high) for _ in range(list_len)]
+        question = (
+            "Sort this list of integers in ascending order. Return ONLY the "
+            "sorted integers, space-separated, nothing else.\n\n"
+            + " ".join(map(str, nums))
+        )
+        rows.append({"question": question, "answer": " ".join(map(str, sorted(nums)))})
+    return Dataset.from_list(rows)
+
+
+def load_environment(
+    num_examples: int = 20,
+    list_len: int = 6,
+    seed: int = 0,
+    low: int = 0,
+    high: int = 99,
+    **kwargs,
+) -> vf.SingleTurnEnv:
+    dataset = _build_dataset(num_examples, list_len, seed, low, high)
+    parser = vf.Parser()
+    rubric = vf.Rubric(funcs=[exact_match, partial_ratio], weights=[1.0, 0.0])
+    return vf.SingleTurnEnv(
+        dataset=dataset,
+        system_prompt=SYSTEM_PROMPT,
+        parser=parser,
+        rubric=rubric,
+    )

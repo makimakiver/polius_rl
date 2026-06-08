@@ -46,3 +46,21 @@ def test_partial_ratio_is_element_level_not_char_level():
     # [12, 3] vs [1, 23] share NO integers → 0.0 at the element level.
     # (A char-level SequenceMatcher on "12 3"/"1 23" would wrongly score high.)
     assert partial_ratio(_completion("12 3"), "1 23") == 0.0
+
+
+def test_load_environment_dataset_len():
+    from sort_list import load_environment
+    env = load_environment(num_examples=5, list_len=4, seed=0)
+    assert len(env.dataset) == 5
+
+
+def test_dataset_answers_are_sorted_and_deterministic():
+    from sort_list import load_environment, _parse_ints
+    a = load_environment(num_examples=5, seed=0)
+    b = load_environment(num_examples=5, seed=0)
+    # deterministic across calls
+    assert list(a.dataset["answer"]) == list(b.dataset["answer"])
+    # each answer is the ascending sort of the question's integers
+    for row in a.dataset:
+        q_nums = _parse_ints(row["question"])
+        assert _parse_ints(row["answer"]) == sorted(q_nums)
