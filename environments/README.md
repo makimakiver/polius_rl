@@ -1,9 +1,10 @@
 # Pollius off-chain environments
 
-## sort-list
+## sort-list  *(dir: `sort_list/`)*
 
-A toy `verifiers` environment: the model sorts a list of integers; scoring is
-deterministic (exact match, with a difflib partial-credit metric).
+A toy `verifiers` environment: the model sorts a list of integers. Scoring is
+deterministic — `exact_match` is the reward (weight 1.0); a difflib
+`partial_ratio` similarity is logged as a metric only (weight 0.0).
 
 ### Setup
 
