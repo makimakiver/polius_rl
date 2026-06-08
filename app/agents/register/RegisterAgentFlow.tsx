@@ -7,6 +7,7 @@ import AppShell from "../../components/AppShell";
 import { useWalletModal } from "../../components/wallet";
 import { shortAddress } from "../../data/environments";
 import { agentFromClaims, addCustomAgent, type VerifiedClaims } from "../../data/customAgents";
+import OnboardAgentCard from "./OnboardAgentCard";
 
 const fieldCls =
   "w-full border border-ink/15 bg-white/60 px-3 py-2 text-sm outline-none transition-colors focus:border-accent placeholder:text-ink/30";
@@ -82,6 +83,8 @@ export default function RegisterAgentFlow({ initialToken = "" }: { initialToken?
           Verify your agent&apos;s registration token to issue its soulbound identity. The
           identity is bound to your wallet and cannot be transferred.
         </p>
+
+        {!initialToken && <OnboardAgentCard />}
 
         {/* Step 1 — token */}
         <section className="mt-8 rounded-xl border border-ink/15 p-5">
