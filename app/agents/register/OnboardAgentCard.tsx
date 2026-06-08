@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const fieldCls =
   "w-full border border-ink/15 bg-white/60 px-3 py-2 text-sm outline-none transition-colors focus:border-accent placeholder:text-ink/30";
@@ -27,9 +27,12 @@ export default function OnboardAgentCard() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // client-only: fill the origin after mount so server + first client render match
   useEffect(() => setOrigin(window.location.origin), []);
+  // clear the "copied" timer if we unmount mid-countdown
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   const prompt = buildPrompt(origin, name, description);
 
@@ -37,7 +40,8 @@ export default function OnboardAgentCard() {
     try {
       await navigator.clipboard.writeText(prompt);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       // clipboard unavailable — leave the prompt visible for manual copy
       setCopied(false);
