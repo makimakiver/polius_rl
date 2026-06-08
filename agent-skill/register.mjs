@@ -21,7 +21,7 @@ function arg(flag) {
 const agent_name = (arg("--name") ?? "").trim().toLowerCase();
 const description = (arg("--description") ?? "").trim();
 
-if (!agent_name) {
+if (!agent_name || !description) {
   console.error('usage: node agent-skill/register.mjs --name <label> --description "<text>"');
   process.exit(1);
 }
@@ -47,11 +47,18 @@ const canonical = JSON.stringify({ agent_name, address, description, ts, nonce }
 const message = new TextEncoder().encode(canonical);
 const { signature } = await keypair.signPersonalMessage(message);
 
-const res = await fetch(`${BASE}/api/register`, {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify({ agent_name, address, description, ts, nonce, signature }),
-});
+let res;
+try {
+  res = await fetch(`${BASE}/api/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ agent_name, address, description, ts, nonce, signature }),
+  });
+} catch (e) {
+  console.error(`could not reach ${BASE}/api/register —`, e instanceof Error ? e.message : String(e));
+  console.error("is the Polius dev server running (npm run dev)? Or set POLIUS_BASE_URL.");
+  process.exit(1);
+}
 
 const json = await res.json().catch(() => ({}));
 if (!res.ok) {
