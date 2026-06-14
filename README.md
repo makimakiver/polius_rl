@@ -57,6 +57,30 @@ python3 demo_environments.py     # env + dispatch + pass@k, no model/Lean needed
 > `lean_proof` rewards need a real Lean toolchain: install elan/Lean and point
 > `config.lean_project_dir` at a Lake project. Without `lake`, the verifier raises.
 
+## Real local-LLM training (torch backend)
+
+The numpy path above is a mock. The torch backend actually trains a local model:
+
+```bash
+python3 train_pollius_torch.py --steps 1 --group-size 2 --max-new-tokens 32
+```
+
+It loads `Qwen/Qwen2.5-0.5B-Instruct` (open-source, ~1GB on first run), generates
+candidate answers, scores them with the chosen environment's reward, computes
+GRPO advantages, and runs a real `loss.backward(); optimizer.step()` on MPS/CPU.
+A 0.5B model rarely solves hard tasks, so rewards start low — the point is a real
+RL loop with a verifiable reward, not SOTA accuracy.
+
+| Piece | File |
+|-------|------|
+| model wrapper (generate + log-probs) | `pollius/policy.py` |
+| torch autograd losses | `pollius/losses_torch.py` |
+| training loop (real backward/step) | `pollius/trainer_torch.py` |
+| driver | `train_pollius_torch.py` |
+
+The loop is unit-tested with a fake policy (no download); the real-model tests run
+only with `POLLIUS_RUN_TORCH_E2E=1`.
+
 ## CISPO in one line
 
 ```
