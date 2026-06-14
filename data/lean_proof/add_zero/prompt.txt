@@ -1,0 +1,1 @@
+Prove in Lean 4 that for any natural number n, n + 0 = n. Output only the proof term or tactic block that completes the theorem.
