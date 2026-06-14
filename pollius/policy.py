@@ -52,13 +52,16 @@ class TorchPolicy:
 
     def generate(self, prompt_text: str, group_size: int) -> GenGroup:
         messages = [{"role": "user", "content": prompt_text}]
-        ids = self.tokenizer.apply_chat_template(
-            messages, add_generation_prompt=True, return_tensors="pt"
-        ).to(self.device)
+        enc = self.tokenizer.apply_chat_template(
+            messages, add_generation_prompt=True, return_tensors="pt", return_dict=True
+        )
+        ids = enc["input_ids"].to(self.device)
+        attention_mask = enc["attention_mask"].to(self.device)
         prompt_len = ids.shape[1]
         with torch.no_grad():
             out = self.model.generate(
                 ids,
+                attention_mask=attention_mask,
                 do_sample=True,
                 temperature=self.config.temperature,
                 top_p=self.config.top_p,

@@ -32,7 +32,7 @@ def _ratio(log_prob, old_log_prob):
 def _metrics(loss, ratio, clipped_ratio, neg_approx_kl, mask) -> LossMetrics:
     return LossMetrics(
         loss=float(loss.item()),
-        clipfrac=float(masked_mean((ratio != clipped_ratio).double(), mask).item()),
+        clipfrac=float(masked_mean((ratio != clipped_ratio).float(), mask).item()),
         approx_kl=float(masked_mean(-neg_approx_kl, mask).item()),
         mean_ratio=float(masked_mean(ratio, mask).item()),
     )
