@@ -7,11 +7,11 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from pollius.registry import make_registry
 from pollius.environments.base import (
     ENVIRONMENT_REGISTRY,
     Task,
     get_environment,
-    make_registry,
     register_environment,
 )
 
@@ -31,3 +31,12 @@ def test_environment_registry_register_and_get():
 
     assert get("demo") is DemoEnv
     assert "demo" in table
+
+
+def test_module_level_register_and_get_environment():
+    @register_environment("unit_test_env")
+    class _UnitTestEnv:
+        name = "unit_test_env"
+
+    assert get_environment("unit_test_env") is _UnitTestEnv
+    assert "unit_test_env" in ENVIRONMENT_REGISTRY
