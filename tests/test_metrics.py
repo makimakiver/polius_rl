@@ -48,3 +48,12 @@ def test_pass_at_k_skips_groups_smaller_than_k():
     per_problem, mean = pass_at_k(rewards, groups, k=5)
     assert math.isnan(per_problem[0])
     assert math.isnan(mean)
+
+
+def test_pass_at_k_accepts_string_group_ids():
+    rewards = np.array([1.0, 0.0, 0.0, 0.0])
+    groups = np.array(["parity", "parity", "next_num", "next_num"])
+    per_problem, mean = pass_at_k(rewards, groups, k=1)
+    assert per_problem["parity"] == 0.5
+    assert per_problem["next_num"] == 0.0
+    assert math.isclose(mean, 0.25)

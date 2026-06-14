@@ -40,7 +40,8 @@ def pass_at_k(rewards, group_ids, k: int) -> Tuple[Dict[int, float], float]:
         members = group_ids == g
         n = int(members.sum())
         c = int((rewards[members] > 0).sum())
-        per_problem[int(g)] = _pass_at_k_single(n, c, k)
+        key = g.item() if hasattr(g, "item") else g
+        per_problem[key] = _pass_at_k_single(n, c, k)
 
     valid = [v for v in per_problem.values() if not np.isnan(v)]
     mean = float(np.mean(valid)) if valid else float("nan")
