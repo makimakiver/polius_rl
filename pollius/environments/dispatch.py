@@ -1,19 +1,33 @@
-"""Instantiate environments by name and score responses by their origin env.
+"""Discover environments, instantiate them by name, and score by origin env.
 
-`load_environments` turns config names into live env instances (importing the
-env modules so their @register_environment decorators have run). `compute_rewards`
+`load_environments` turns config names into live env instances; `compute_rewards`
 scores each (task, response) pair by dispatching to the env named on the task --
 this is what lets one batch mix many task types.
+
+Environments are AUTO-DISCOVERED: every module under `pollius/environments/` is
+imported on load, so its @register_environment runs. To add a new task type, just
+drop a file in that folder -- no import wiring here, nothing else to edit.
 """
 
 from __future__ import annotations
 
+import importlib
+import pkgutil
 from typing import Dict, List
 
-# Import side-effect: registers the shipped environments.
-from pollius.environments import lean_proof as _lean_proof  # noqa: F401
-from pollius.environments import logic_quiz as _logic_quiz  # noqa: F401
+from pollius import environments as _environments_pkg
 from pollius.environments.base import Task, get_environment
+
+
+def _autodiscover_environments() -> None:
+    """Import every env module so its @register_environment decorator runs."""
+    for module in pkgutil.iter_modules(_environments_pkg.__path__):
+        if module.name in ("base", "dispatch"):
+            continue
+        importlib.import_module(f"pollius.environments.{module.name}")
+
+
+_autodiscover_environments()
 
 
 def load_environments(names, config) -> Dict[str, object]:
