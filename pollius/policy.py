@@ -44,7 +44,7 @@ class TorchPolicy:
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         self.model = AutoModelForCausalLM.from_pretrained(
-            config.model_name, torch_dtype=torch.float32
+            config.model_name, dtype=torch.float32
         ).to(self.device)
 
     def parameters(self):
