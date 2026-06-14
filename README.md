@@ -37,6 +37,26 @@ algorithm by writing one decorated function — nothing else changes.
 | advantage | `pollius/advantage.py` | `grpo`  | `config.adv_estimator` |
 | policy loss | `pollius/losses.py`  | `cispo` | `config.policy_loss` |
 
+## Environments (the 4th box)
+
+A task type bundles *where questions come from* and *how answers are scored*:
+
+| Env | File | Reward | Data |
+|-----|------|--------|------|
+| `lean_proof` | `pollius/environments/lean_proof.py` | real Lean4 verifier (`lake env lean`) | `data/lean_proof/<problem>/` |
+| `logic_quiz` | `pollius/environments/logic_quiz.py` | exact answer match | `data/logic_quiz/<problem>/task.json` |
+
+Rewards are dispatched per sample by the env that produced the task, so a batch
+can mix task types. `pass@k` (`pollius/metrics.py`) is logged per problem-group.
+Add a task type by writing one `@register_environment("name")` class.
+
+```bash
+python3 demo_environments.py     # env + dispatch + pass@k, no model/Lean needed
+```
+
+> `lean_proof` rewards need a real Lean toolchain: install elan/Lean and point
+> `config.lean_project_dir` at a Lake project. Without `lake`, the verifier raises.
+
 ## CISPO in one line
 
 ```
