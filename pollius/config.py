@@ -48,6 +48,14 @@ class PolliusConfig:
     reject_sorry: bool = True
     pass_at_k_values: tuple = (1, 4)
 
+    # --- torch backend (phase 5) ------------------------------------------
+    model_name: str = "Qwen/Qwen2.5-0.5B-Instruct"
+    device: str = "auto"            # "auto" -> mps -> cuda -> cpu
+    max_new_tokens: int = 64
+    temperature: float = 1.0
+    top_p: float = 1.0
+    grad_clip: float = 1.0
+
     def __post_init__(self) -> None:
         if self.group_size < 2:
             raise ValueError(
