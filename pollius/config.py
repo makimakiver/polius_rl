@@ -40,6 +40,14 @@ class PolliusConfig:
     num_steps: int = 5
     seed: int = 0
 
+    # --- environments / data / eval (phase 1-4) ---------------------------
+    environments: tuple = ("lean_proof",)   # which envs to draw tasks from
+    data_dir: str = "data"
+    lean_project_dir: str = "lean_project"  # must hold a lakefile + toolchain
+    lean_timeout_s: float = 30.0
+    reject_sorry: bool = True
+    pass_at_k_values: tuple = (1, 4)
+
     def __post_init__(self) -> None:
         if self.group_size < 2:
             raise ValueError(
