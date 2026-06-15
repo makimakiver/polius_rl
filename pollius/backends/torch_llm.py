@@ -86,7 +86,9 @@ class TorchPolicy:
         response_ids = out[:, prompt_len:]
         response_mask = (response_ids != self.tokenizer.pad_token_id).float()
         texts = self.tokenizer.batch_decode(response_ids, skip_special_tokens=True)
-        print("generated text: ", texts)
+        print("---- generations ----", flush=True)
+        for i, t in enumerate(texts):
+            print(f"  [{i}] {t!r}", flush=True)
         return GenGroup(texts, out, prompt_len, response_mask)
 
     def logprobs(self, gen: GenGroup) -> torch.Tensor:
