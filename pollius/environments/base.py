@@ -130,7 +130,7 @@ class LeanVerifier:
         stderr = ""
         try:
             result = subprocess.run(
-                [lake, "env", "lean", tmp],
+                [lake, "env", "lean", os.path.basename(tmp)],
                 cwd=proj,
                 capture_output=True,
                 text=True,

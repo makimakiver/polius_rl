@@ -32,8 +32,8 @@ class GenGroup:
     """One prompt's worth of generations + what's needed to score them."""
 
     response_texts: List[str]
-    sequences: torch.Tensor      # (G, L) full prompt+response token ids
-    prompt_len: int              # number of prompt tokens (shared across the group)
+    sequences: torch.Tensor  # (G, L) full prompt+response token ids
+    prompt_len: int  # number of prompt tokens (shared across the group)
     response_mask: torch.Tensor  # (G, R) 1.0 for real response tokens
 
 
@@ -82,19 +82,21 @@ class TorchPolicy:
                 num_return_sequences=group_size,
                 pad_token_id=self.tokenizer.pad_token_id,
             )
+
         response_ids = out[:, prompt_len:]
         response_mask = (response_ids != self.tokenizer.pad_token_id).float()
         texts = self.tokenizer.batch_decode(response_ids, skip_special_tokens=True)
+        print("generated text: ", texts)
         return GenGroup(texts, out, prompt_len, response_mask)
 
     def logprobs(self, gen: GenGroup) -> torch.Tensor:
         seq = gen.sequences
         attn = (seq != self.tokenizer.pad_token_id).long()
-        logits = self.model(seq, attention_mask=attn).logits      # (G, L, V)
-        logp_all = torch.log_softmax(logits[:, :-1, :], dim=-1)    # (G, L-1, V)
-        targets = seq[:, 1:].unsqueeze(-1)                         # (G, L-1, 1)
+        logits = self.model(seq, attention_mask=attn).logits  # (G, L, V)
+        logp_all = torch.log_softmax(logits[:, :-1, :], dim=-1)  # (G, L-1, V)
+        targets = seq[:, 1:].unsqueeze(-1)  # (G, L-1, 1)
         tok_logp = torch.gather(logp_all, 2, targets).squeeze(-1)  # (G, L-1)
-        return tok_logp[:, gen.prompt_len - 1:]                    # (G, R)
+        return tok_logp[:, gen.prompt_len - 1 :]  # (G, R)
 
 
 # ----------------------------------------------------------------------------
@@ -123,7 +125,9 @@ def cispo_loss(old_log_prob, log_prob, advantages, response_mask, config):
     loss = masked_mean(per_token_loss, response_mask)
     metrics = LossMetrics(
         loss=float(loss.item()),
-        clipfrac=float(masked_mean((ratio != clipped_ratio).float(), response_mask).item()),
+        clipfrac=float(
+            masked_mean((ratio != clipped_ratio).float(), response_mask).item()
+        ),
         approx_kl=float(masked_mean(-neg_approx_kl, response_mask).item()),
         mean_ratio=float(masked_mean(ratio, response_mask).item()),
     )
@@ -148,7 +152,9 @@ class TorchTrainer:
         pool = []
         for name in self.envs:
             pool.extend(
-                self.envs[name].sample_tasks(self.config.num_prompts_per_step, self._rng)
+                self.envs[name].sample_tasks(
+                    self.config.num_prompts_per_step, self._rng
+                )
             )
         return pool[: self.config.num_prompts_per_step]
 
@@ -176,7 +182,9 @@ class TorchTrainer:
                 dtype=np.float64,
             )
             mask_np = gen.response_mask.detach().cpu().numpy()
-            adv_np = self.adv_fn(rewards, np.zeros(len(rewards), dtype=int), mask_np, cfg)
+            adv_np = self.adv_fn(
+                rewards, np.zeros(len(rewards), dtype=int), mask_np, cfg
+            )
             adv = torch.tensor(
                 adv_np, dtype=gen.response_mask.dtype, device=gen.response_mask.device
             )
@@ -200,7 +208,9 @@ class TorchTrainer:
 
         group_ids = np.array(all_groups)
         rewards_arr = np.array(all_rewards)
-        passk = {k: pass_at_k(rewards_arr, group_ids, k)[1] for k in cfg.pass_at_k_values}
+        passk = {
+            k: pass_at_k(rewards_arr, group_ids, k)[1] for k in cfg.pass_at_k_values
+        }
         return {
             "loss": float(total_loss.item()),
             "mean_reward": float(np.mean(all_rewards)) if all_rewards else 0.0,
