@@ -8,4 +8,4 @@ theorem ex2 (n : Nat) : n ≤ n + 1 := by omega
 theorem ex3 (a b : Nat) : a + b - b = a := by omega
 
 Now finish this theorem. Output only the "by ..." line and nothing else:
-theorem add_zero_demo (n : Nat) : n + 0 = n :=
+theorem add_assoc_demo (a b c : Nat) : a + b + c = a + (b + c) :=
