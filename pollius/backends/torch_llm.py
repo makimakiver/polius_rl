@@ -170,11 +170,16 @@ class TorchTrainer:
             )
 
         self.optimizer.zero_grad()
-        total_loss = None
+        n_tasks = len(tasks)
+        loss_sum = 0.0
         all_rewards: List[float] = []
         all_groups: List[int] = []
         kls, clipfracs, mean_ratios = [], [], []
 
+        # Gradient accumulation: backward() per task so each task's autograd
+        # graph (which holds a (G, L, vocab) logits tensor) is freed before the
+        # next one. Summing losses and doing a single backward instead retains
+        # every task's graph at once and OOMs for large num_prompts/group_size.
         for gi, task in enumerate(tasks):
             gen = self.policy.generate(task.prompt, cfg.group_size)
             rewards = np.array(
@@ -196,17 +201,18 @@ class TorchTrainer:
             logp = self.policy.logprobs(gen)
             loss, m = self.loss_fn(old_logp, logp, adv, gen.response_mask, cfg)
 
-            total_loss = loss if total_loss is None else total_loss + loss
+            # scale by 1/n_tasks so accumulated grads == one backward on the mean
+            (loss / n_tasks).backward()
+            loss_sum += float(loss.item())
             all_rewards.extend(rewards.tolist())
             all_groups.extend([gi] * len(rewards))
             kls.append(m.approx_kl)
             clipfracs.append(m.clipfrac)
             mean_ratios.append(m.mean_ratio)
 
-        total_loss = total_loss / len(tasks)
-        total_loss.backward()
         torch.nn.utils.clip_grad_norm_(self.policy.parameters(), cfg.grad_clip)
         self.optimizer.step()
+        mean_loss = loss_sum / n_tasks
 
         group_ids = np.array(all_groups)
         rewards_arr = np.array(all_rewards)
@@ -214,7 +220,7 @@ class TorchTrainer:
             k: pass_at_k(rewards_arr, group_ids, k)[1] for k in cfg.pass_at_k_values
         }
         return {
-            "loss": float(total_loss.item()),
+            "loss": mean_loss,
             "mean_reward": float(np.mean(all_rewards)) if all_rewards else 0.0,
             "pass_at_k": passk,
             "approx_kl": float(np.mean(kls)) if kls else 0.0,
