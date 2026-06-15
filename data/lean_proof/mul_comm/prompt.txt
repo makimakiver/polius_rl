@@ -15,4 +15,4 @@ theorem ex4 (n : Nat) : 0 < n + 1 := by induction n with | zero => decide | succ
 theorem ex5 (p q : Prop) (h : p ∧ q) : q ∧ p := by exact ⟨h.2, h.1⟩
 
 Now finish this theorem. Output only the "by ..." line(s) and nothing else:
-theorem two_mul_demo (n : Nat) : n + n = 2 * n :=
+theorem mul_comm_demo (a b : Nat) : a * b = b * a :=

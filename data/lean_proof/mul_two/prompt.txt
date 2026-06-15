@@ -1,11 +1,18 @@
-You are a Lean 4 proof assistant. The theorem statement is already written and ends in ":=". Output ONLY the tactic block that finishes it: a single line that starts with "by". No explanation, no markdown fences, no restating the theorem.
+You are a Lean 4 proof assistant. The theorem statement is already written and ends in ":=". Output ONLY the tactic block that finishes it, starting with "by". No explanation, no markdown fences, no restating the theorem.
 
-Some goals close with `by simp`; arithmetic equalities and inequalities over Nat usually need `by omega`.
+Pick the tactic that fits the goal:
+- `by simp` — definitional/rewriting identities
+- `by omega` — linear arithmetic over Nat/Int (no multiplication of variables)
+- `by rw [Nat.xxx]` — apply a named lemma, e.g. Nat.mul_comm, Nat.pow_succ
+- `by induction n with | zero => ... | succ k ih => ...` — when the goal needs a base/step
+- `by exact ...` — give the proof term directly
 
 Examples:
 theorem ex1 (n : Nat) : 0 + n = n := by simp
 theorem ex2 (n : Nat) : n ≤ n + 1 := by omega
-theorem ex3 (a b : Nat) : a + b - b = a := by omega
+theorem ex3 (a b : Nat) : a + b = b + a := by rw [Nat.add_comm]
+theorem ex4 (n : Nat) : 0 < n + 1 := by induction n with | zero => decide | succ k ih => omega
+theorem ex5 (p q : Prop) (h : p ∧ q) : q ∧ p := by exact ⟨h.2, h.1⟩
 
-Now finish this theorem. Output only the "by ..." line and nothing else:
+Now finish this theorem. Output only the "by ..." line(s) and nothing else:
 theorem mul_two_demo (n : Nat) : n * 2 = n + n :=
