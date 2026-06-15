@@ -16,10 +16,10 @@ REPO="$PWD"
 
 MODEL="${MODEL:-Qwen/Qwen2.5-0.5B-Instruct}"
 ENVS="${ENVS:-lean_proof}"
-STEPS="${STEPS:-20}"
-NUM_PROMPTS="${NUM_PROMPTS:-2}"
-GROUP_SIZE="${GROUP_SIZE:-4}"
-MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-32}"
+STEPS="${STEPS:-40}"
+NUM_PROMPTS="${NUM_PROMPTS:-13}"   # = number of lean_proof problems, so every one is trained each step
+GROUP_SIZE="${GROUP_SIZE:-8}"
+MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-64}"   # room for full induction blocks
 LEAN_TOOLCHAIN="leanprover/lean4:v4.30.0"
 
 log() { printf '\n\033[1;36m== %s\033[0m\n' "$*"; }
