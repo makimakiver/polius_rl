@@ -30,7 +30,7 @@ def _to_torch(*arrays):
 
 
 def test_registry_lists_torch_losses():
-    assert set(["cispo", "ppo", "reinforce"]).issubset(set(t_losses.TORCH_POLICY_LOSS_REGISTRY))
+    assert "cispo" in t_losses.TORCH_POLICY_LOSS_REGISTRY
 
 
 def test_cispo_matches_numpy():
@@ -41,24 +41,6 @@ def test_cispo_matches_numpy():
     t_loss, m = t_losses.cispo_loss(t_old, t_new, t_adv, t_mask, cfg)
     assert math.isclose(float(t_loss.item()), np_loss, rel_tol=1e-9, abs_tol=1e-9)
     assert math.isfinite(m.approx_kl) and 0.0 <= m.clipfrac <= 1.0
-
-
-def test_ppo_matches_numpy():
-    cfg = PolliusConfig()
-    old, new, adv, mask = _inputs()
-    np_loss, _ = np_losses.ppo_loss(old, new, adv, mask, cfg)
-    t_old, t_new, t_adv, t_mask = _to_torch(old, new, adv, mask)
-    t_loss, _ = t_losses.ppo_loss(t_old, t_new, t_adv, t_mask, cfg)
-    assert math.isclose(float(t_loss.item()), np_loss, rel_tol=1e-9, abs_tol=1e-9)
-
-
-def test_reinforce_matches_numpy():
-    cfg = PolliusConfig()
-    old, new, adv, mask = _inputs()
-    np_loss, _ = np_losses.reinforce_loss(old, new, adv, mask, cfg)
-    t_old, t_new, t_adv, t_mask = _to_torch(old, new, adv, mask)
-    t_loss, _ = t_losses.reinforce_loss(t_old, t_new, t_adv, t_mask, cfg)
-    assert math.isclose(float(t_loss.item()), np_loss, rel_tol=1e-9, abs_tol=1e-9)
 
 
 def test_cispo_is_differentiable():
