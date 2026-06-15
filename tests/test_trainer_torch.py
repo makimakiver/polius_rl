@@ -15,10 +15,10 @@ import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pollius.config import PolliusConfig
+from pollius.core import PolliusConfig
 from pollius.environments.dispatch import load_environments
-from pollius.policy import GenGroup
-from pollius.trainer_torch import TorchTrainer
+from pollius.backends.torch_llm import GenGroup
+from pollius.backends.torch_llm import TorchTrainer
 
 
 class FakePolicy:

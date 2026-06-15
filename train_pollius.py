@@ -15,9 +15,9 @@ import argparse
 import numpy as np
 
 from pollius import MockRollout, PolliusConfig, PolliusTrainer
-from pollius.advantage import ADVANTAGE_REGISTRY
-from pollius.losses import POLICY_LOSS_REGISTRY
-from pollius.reward import register_reward
+from pollius.algorithms import ADVANTAGE_REGISTRY
+from pollius.algorithms import POLICY_LOSS_REGISTRY
+from pollius.backends.mock import register_reward
 
 
 def _register_demo_reward() -> str:

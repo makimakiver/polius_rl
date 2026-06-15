@@ -12,13 +12,13 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pollius.advantage import ADVANTAGE_REGISTRY, grpo_advantage
-from pollius.config import PolliusConfig
-from pollius.losses import POLICY_LOSS_REGISTRY, cispo_loss
-from pollius.reward import get_reward_fn
-from pollius.trainer import PolliusTrainer
-from pollius.rollout import MockRollout
-from pollius.types import Sample
+from pollius.algorithms import ADVANTAGE_REGISTRY, grpo_advantage
+from pollius.core import PolliusConfig
+from pollius.algorithms import POLICY_LOSS_REGISTRY, cispo_loss
+from pollius.backends.mock import get_reward_fn
+from pollius.backends.mock import PolliusTrainer
+from pollius.backends.mock import MockRollout
+from pollius.core import Sample
 
 
 def test_null_reward_is_zero():

@@ -7,7 +7,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pollius.config import PolliusConfig
+from pollius.core import PolliusConfig
 
 
 def test_torch_config_defaults():

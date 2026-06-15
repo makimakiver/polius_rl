@@ -11,9 +11,9 @@ import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pollius.config import PolliusConfig
-from pollius import losses as np_losses
-from pollius import losses_torch as t_losses
+from pollius.core import PolliusConfig
+from pollius import algorithms as np_losses
+from pollius.backends import torch_llm as t_losses
 
 
 def _inputs():

@@ -15,8 +15,8 @@ import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pollius.config import PolliusConfig
-from pollius.policy import GenGroup, _select_device
+from pollius.core import PolliusConfig
+from pollius.backends.torch_llm import GenGroup, _select_device
 
 E2E = os.environ.get("POLLIUS_RUN_TORCH_E2E") == "1"
 
@@ -39,7 +39,7 @@ def test_gengroup_holds_fields():
 
 @pytest.mark.skipif(not E2E, reason="set POLLIUS_RUN_TORCH_E2E=1 to run (downloads Qwen)")
 def test_real_generate_and_logprobs_shapes():
-    from pollius.policy import TorchPolicy
+    from pollius.backends.torch_llm import TorchPolicy
     cfg = PolliusConfig(max_new_tokens=8)
     policy = TorchPolicy(cfg)
     gen = policy.generate("Reply with 'Answer: yes'.", group_size=2)

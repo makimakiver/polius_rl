@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import argparse
 
-from pollius.config import PolliusConfig
+from pollius.core import PolliusConfig
 from pollius.environments.dispatch import load_environments
-from pollius.losses_torch import TORCH_POLICY_LOSS_REGISTRY
-from pollius.advantage import ADVANTAGE_REGISTRY
+from pollius.backends.torch_llm import TORCH_POLICY_LOSS_REGISTRY
+from pollius.algorithms import ADVANTAGE_REGISTRY
 
 
 def main() -> None:
@@ -43,8 +43,8 @@ def main() -> None:
         device=args.device,
     )
 
-    from pollius.policy import TorchPolicy
-    from pollius.trainer_torch import TorchTrainer
+    from pollius.backends.torch_llm import TorchPolicy
+    from pollius.backends.torch_llm import TorchTrainer
 
     print(f"model={cfg.model_name}  envs={cfg.environments}  loss={cfg.policy_loss}")
     policy = TorchPolicy(cfg)

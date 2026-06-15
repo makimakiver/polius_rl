@@ -9,7 +9,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pollius.config import PolliusConfig
+from pollius.core import PolliusConfig
 from pollius.environments.base import ENVIRONMENT_REGISTRY
 from pollius.environments.lean_proof import LeanProofEnv
 
@@ -35,7 +35,7 @@ def test_sample_tasks_empty_when_dir_missing():
 
 
 def test_reward_raises_without_lake(monkeypatch):
-    from pollius import verifier as V
+    from pollius.environments import base as V
     monkeypatch.setattr(V.shutil, "which", lambda _: None)
     env = LeanProofEnv(PolliusConfig(data_dir="data"))
     task = env.sample_tasks(1, np.random.default_rng(0))[0]

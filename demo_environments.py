@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from pollius.config import PolliusConfig
+from pollius.core import PolliusConfig
 from pollius.environments.dispatch import compute_rewards, load_environments
-from pollius.metrics import pass_at_k
+from pollius.algorithms import pass_at_k
 
 
 def main() -> None:

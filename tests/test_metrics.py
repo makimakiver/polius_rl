@@ -10,7 +10,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pollius.metrics import pass_at_k
+from pollius.algorithms import pass_at_k
 
 
 def test_pass_at_1_is_fraction_correct():

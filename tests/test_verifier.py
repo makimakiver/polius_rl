@@ -11,8 +11,8 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pollius import verifier as V
-from pollius.config import PolliusConfig
+from pollius.environments import base as V
+from pollius.core import PolliusConfig
 
 
 class _Result:

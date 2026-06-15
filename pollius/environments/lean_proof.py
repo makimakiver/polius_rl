@@ -10,12 +10,12 @@ from __future__ import annotations
 import os
 
 from pollius.environments.base import (
+    LeanVerifier,
     Task,
     VerifiedEnvironment,
     iter_problem_dirs,
     register_environment,
 )
-from pollius.verifier import LeanVerifier
 
 
 @register_environment("lean_proof")

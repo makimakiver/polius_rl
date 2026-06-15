@@ -9,7 +9,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pollius.config import PolliusConfig
+from pollius.core import PolliusConfig
 from pollius.environments.base import ENVIRONMENT_REGISTRY
 from pollius.environments.logic_quiz import LogicQuizEnv, _extract_answer
 
