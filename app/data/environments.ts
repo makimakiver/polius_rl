@@ -26,6 +26,28 @@ export interface RlEnvironment {
 
 export const environments: RlEnvironment[] = [
   {
+    id: "lean-proof",
+    name: "Lean Theorem Proving",
+    description:
+      "Self-guided self-play (SGS): the conjecturer mines confidently-wrong proofs into synthetic theorems; the solver post-trains against the Lean verifier. Powers the inference market.",
+    deployer: "0x9f1c4a7e2b8d6f3019ac55e7b1d2c8f40a6e7b91c3d2f5a8b4c6d7e9f0a1b2c3d",
+    status: "Training",
+    reward: 0,
+    episodes: 0,
+    successRate: 0.33,
+    algorithm: "GRPO + CISPO (SGS)",
+    observationSpace: "Lean theorem (text)",
+    actionSpace: "Lean proof (text)",
+    hyperparameters: [
+      { label: "Base model", value: "Qwen2.5-0.5B" },
+      { label: "Verifier", value: "Lean 4 / lake" },
+      { label: "Conjecturer", value: "SPG (g_φ)" },
+      { label: "Adapter", value: "LoRA → Walrus" },
+    ],
+    rewardCurve: [0.2, 0.32, 0.44, 0.55, 0.63],
+    tags: ["lean", "sgs", "self-play"],
+  },
+  {
     id: "cartpole-swarm",
     name: "CartPole Swarm",
     description:

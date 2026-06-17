@@ -1,0 +1,46 @@
+{
+  "listings": [
+    {
+      "id": "lean-prover",
+      "modelName": "qwen-0.5b-lean-prover",
+      "task": "Lean theorem proving",
+      "environmentId": "lean-proof",
+      "priceSui": 0.1,
+      "priceMist": 100000000,
+      "currentVersion": 0,
+      "versions": [
+        {
+          "v": 0,
+          "passRateBps": 3333,
+          "walrusBlobId": "local-v0"
+        }
+      ],
+      "samples": [
+        {
+          "input": "theorem add_zero_demo (n : Nat) : n + 0 = n :=\n",
+          "output": "by simp",
+          "verified": true
+        },
+        {
+          "input": "theorem mul_comm_demo (a b : Nat) : a * b = b * a :=\n",
+          "output": "by rw [Nat.mul_comm]; by simp",
+          "verified": false
+        },
+        {
+          "input": "theorem gauss_sum_demo (n : Nat) : 2 * (List.range (n + 1)).sum = n * (n + 1) :=\n",
+          "output": "by exact (List.sum (List.range (n + 1))) * (n + 1)",
+          "verified": false
+        }
+      ],
+      "spgProblems": [
+        "theorem add_one_to_a : (a : Nat) + 1 = a + 1 := ",
+        "theorem add_zero (n : Nat) : n + 0 = n := ",
+        "theorem multiply_identity :\n  a * 1 = a := "
+      ],
+      "totalCalls": 3,
+      "deployedAt": "2026-06-17"
+    }
+  ],
+  "source": "market_bridge",
+  "passRate": 0.3333333333333333
+}

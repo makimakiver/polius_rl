@@ -7,6 +7,7 @@ import { DashboardIcon, LayersIcon, ActivityIcon, SettingsIcon, PlusIcon, BotIco
 
 const nav = [
   { label: "Dashboard", href: "/", icon: DashboardIcon },
+  { label: "Market", href: "/market", icon: ActivityIcon },
   { label: "Agents", href: "/agents", icon: BotIcon },
   { label: "Environments", href: "/environments", icon: LayersIcon },
   { label: "Deploy", href: "/deploy", icon: PlusIcon },
