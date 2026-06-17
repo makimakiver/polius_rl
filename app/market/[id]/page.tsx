@@ -15,6 +15,7 @@ import { StatusDot } from "../../components/StatusPill";
 import { useWalletModal } from "../../components/wallet";
 import { getEnvironment } from "../../data/environments";
 import VerifierPanel from "../../components/VerifierPanel";
+import { useRegistry } from "../../hooks/useRegistry";
 import {
   type RunResult,
   type Sample,
@@ -73,6 +74,9 @@ export default function ListingDetailPage() {
     () => (listing ? passCurve(listing, version) : []),
     [listing, version],
   );
+
+  // Live read of the on-chain ModelRegistry (hook must run before any early return).
+  const reg = useRegistry(REGISTRY && MARKET_ENV ? REGISTRY : undefined);
 
   if (!listing || !sample) {
     return (
@@ -306,6 +310,50 @@ export default function ListingDetailPage() {
             </div>
           </section>
         </div>
+
+        {onChain && reg.data && (
+          <section className="mt-6 rounded-lg border border-accent/30 bg-accent/[0.04] p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-medium uppercase tracking-wide">Live on-chain registry</h2>
+              <span className="font-mono text-[11px] text-accent">Sui testnet · refetch 5s</span>
+            </div>
+            <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-ink/15 bg-ink/10 sm:grid-cols-4">
+              {[
+                { label: "Current best", value: `v${reg.data.currentBest}` },
+                { label: "Total calls", value: `${reg.data.totalCalls}` },
+                { label: "Fee pool", value: `${(reg.data.feePoolMist / 1e9).toFixed(4)} SUI` },
+                { label: "Checkpoints", value: `${reg.data.versions.length}` },
+              ].map((s) => (
+                <div key={s.label} className="bg-background p-4">
+                  <div className="font-mono text-xl">{s.value}</div>
+                  <div className="mt-1 font-mono text-[11px] uppercase tracking-wide text-ink/40">{s.label}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 space-y-1.5">
+              {reg.data.versions.map((v, i) => (
+                <div key={i} className="flex items-center justify-between rounded-md border border-ink/15 px-3 py-2 font-mono text-[11px]">
+                  <span className="flex items-center gap-2">
+                    <span className={`h-1.5 w-1.5 rounded-full ${i === reg.data?.currentBest ? "bg-accent" : "bg-ink/40"}`} />
+                    v{i} {i === reg.data?.currentBest && <span className="text-accent">· current</span>}
+                  </span>
+                  <span className="text-ink/60">{(v.passRateBps / 100).toFixed(0)}% pass</span>
+                  <a
+                    href={`https://walruscan.com/testnet/blob/${v.blobId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="max-w-[42%] truncate text-accent underline-offset-4 hover:underline"
+                  >
+                    {v.blobId.slice(0, 14)}… ↗
+                  </a>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 font-mono text-[10px] text-ink/40">
+              read live from ModelRegistry {REGISTRY?.slice(0, 12)}… — versions are LoRA adapter blobs on Walrus
+            </p>
+          </section>
+        )}
 
         <VerifierPanel
           verifier={listing.verifier}
