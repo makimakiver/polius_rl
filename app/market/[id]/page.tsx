@@ -32,6 +32,7 @@ const PKG =
   "0x149cff9273cd26d4c32fbf49ed38a239e5a936f37d65408e8659938d90173608";
 // Set once inference_market + ModelRegistry are deployed; until then → simulated.
 const REGISTRY = process.env.NEXT_PUBLIC_MARKET_REGISTRY;
+const MARKET_ENV = process.env.NEXT_PUBLIC_MARKET_ENV;
 const PROMOTE_MS = 6000;
 
 export default function ListingDetailPage() {
@@ -86,6 +87,8 @@ export default function ListingDetailPage() {
   }
 
   const model = versionAt(listing, version);
+  // Real on-chain run only for the listing that has a deployed registry+env.
+  const onChain = !!(REGISTRY && MARKET_ENV && listing.real);
   // Free preview of what the current version produces for this sample, shown on
   // load (no wallet needed). Recomputes as the loop promotes → flips ✗ → ✓ live.
   const preview = runSample(listing, sample, version);
@@ -98,12 +101,17 @@ export default function ListingDetailPage() {
     setResult(null);
     try {
       let txDigest: string | undefined;
-      if (REGISTRY) {
+      if (onChain) {
         const tx = new Transaction();
         const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(listing.priceMist)]);
         tx.moveCall({
-          target: `${PKG}::inference_market::buy_inference`,
-          arguments: [tx.object(REGISTRY), tx.pure.u64(sampleIdx), coin],
+          target: `${PKG}::inference_market::buy_inference_entry`,
+          arguments: [
+            tx.object(REGISTRY!),
+            tx.object(MARKET_ENV!),
+            tx.pure.u64(sampleIdx),
+            coin,
+          ],
         });
         const { digest } = await signAndExecute({ transaction: tx });
         await client.waitForTransaction({ digest });
@@ -162,7 +170,7 @@ export default function ListingDetailPage() {
           <section className="rounded-lg border border-ink/15 p-5">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-medium uppercase tracking-wide">Sample inference</h2>
-              <StatusDot label={REGISTRY ? "on-chain" : "simulated"} dotClass={REGISTRY ? "bg-accent" : "bg-ink/40"} />
+              <StatusDot label={onChain ? "on-chain" : "simulated"} dotClass={onChain ? "bg-accent" : "bg-ink/40"} />
             </div>
 
             {/* sample picker (fixed prompts, no free-form input) */}
@@ -202,7 +210,7 @@ export default function ListingDetailPage() {
                 {running ? "Running…" : account ? `Run · ${listing.priceSui} SUI` : "Connect to run"}
               </button>
               <span className="font-mono text-[11px] text-ink/40">
-                {REGISTRY ? "inference_market::buy_inference" : "no registry set → simulated"}
+                {onChain ? "inference_market::buy_inference_entry" : "simulated (no on-chain registry for this model)"}
               </span>
             </div>
 
