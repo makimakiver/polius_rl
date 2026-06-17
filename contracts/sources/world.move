@@ -16,6 +16,7 @@ module pols_core::environment;
 
 use std::string::String;
 use sui::balance::{Self, Balance};
+use sui::coin::{Self, Coin};
 use sui::sui::SUI;
 use pols_core::events;
 
@@ -178,3 +179,12 @@ public fun legit_until(env: &Environment): u64 { env.legit_until }
 public fun version(env: &Environment): u64 { env.version }
 
 public fun fee_pool_value(env: &Environment): u64 { balance::value(&env.fee_pool) }
+
+// ---- fee intake ---------------------------------------------------------
+
+/// Deposit SUI into this environment's fee pool. Used by the inference market to
+/// route the environment's cut of each paid inference back to the env creator.
+public fun deposit_fees(env: &mut Environment, payment: Coin<SUI>) {
+    assert_version(env);
+    balance::join(&mut env.fee_pool, coin::into_balance(payment));
+}
