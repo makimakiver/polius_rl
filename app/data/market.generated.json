@@ -7,12 +7,17 @@
       "environmentId": "lean-proof",
       "priceSui": 0.1,
       "priceMist": 100000000,
-      "currentVersion": 0,
+      "currentVersion": 1,
       "versions": [
         {
           "v": 0,
           "passRateBps": 3333,
           "walrusBlobId": "local-v0"
+        },
+        {
+          "v": 1,
+          "passRateBps": 3333,
+          "walrusBlobId": "local-v1"
         }
       ],
       "samples": [
@@ -33,9 +38,8 @@
         }
       ],
       "spgProblems": [
-        "theorem add_one_to_a : (a : Nat) + 1 = a + 1 := ",
-        "theorem add_zero (n : Nat) : n + 0 = n := ",
-        "theorem multiply_identity :\n  a * 1 = a := "
+        "theorem zero_additivity (r : Nat) : \u2200(n : Nat), r + 0 = n := ",
+        "theorem mult_zero (x y : Nat) :\n(x * 0 = 0 && y * 0 = 0) := "
       ],
       "totalCalls": 3,
       "deployedAt": "2026-06-17"
