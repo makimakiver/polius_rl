@@ -136,8 +136,8 @@ const seeded: Listing[] = [
       detail:
         "code executed in a sandbox via MPP (0.02 USDC), verdict attested on Sui",
     },
-    priceSui: 0.1,
-    priceMist: 100_000_000,
+    priceSui: 0.0001,
+    priceMist: 100_000,
     currentVersion: 0,
     versions: [
       { v: 0, passRateBps: 2000, walrusBlobId: "nUEB_sort_v0" },
