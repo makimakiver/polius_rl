@@ -59,6 +59,7 @@ export interface Listing {
   totalCalls: number;
   deployedAt: string;
   real?: boolean; // true → produced by market_bridge.py (real model + Lean)
+  judge0TaskId?: number; // task id in the verifier service's TASKS bank (judge0 listings)
 }
 
 export interface RunResult {
@@ -146,6 +147,7 @@ const seeded: Listing[] = [
     ],
     totalCalls: 0,
     deployedAt: "2026-06-20",
+    judge0TaskId: 7,
     samples: [
       {
         input: "5 -3 5 0 -3 9",

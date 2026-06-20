@@ -367,7 +367,7 @@ export default function ListingDetailPage() {
             pkg={PKG}
             registry={REGISTRY ?? listing.id}
             env={MARKET_ENV ?? listing.environmentId}
-            taskId={sampleIdx}
+            taskId={listing.judge0TaskId ?? 7}
           />
         )}
 
