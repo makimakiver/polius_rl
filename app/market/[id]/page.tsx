@@ -15,6 +15,7 @@ import { StatusDot } from "../../components/StatusPill";
 import { useWalletModal } from "../../components/wallet";
 import { getEnvironment } from "../../data/environments";
 import VerifierPanel from "../../components/VerifierPanel";
+import { VerifiedRunPanel } from "../../components/VerifiedRunPanel";
 import { useRegistry } from "../../hooks/useRegistry";
 import {
   type RunResult,
@@ -91,6 +92,9 @@ export default function ListingDetailPage() {
   }
 
   const model = versionAt(listing, version);
+  // Judge0-verified listing: code is executed in a sandbox via MPP and the
+  // verdict is attested on-chain (the VerifiedRunPanel drives that flow).
+  const isJudge0 = listing.verifier.kind === "judge0";
   // Real on-chain run only for the listing that has a deployed registry+env.
   const onChain = !!(REGISTRY && MARKET_ENV && listing.real);
   // Free preview of what the current version produces for this sample, shown on
@@ -205,18 +209,25 @@ export default function ListingDetailPage() {
               {sample.input}
             </pre>
 
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <button
-                onClick={run}
-                disabled={running}
-                className="rounded-full border border-ink bg-ink px-5 py-2.5 text-sm font-medium text-background transition-colors hover:bg-transparent hover:text-ink disabled:opacity-60"
-              >
-                {running ? "Running…" : account ? `Run · ${listing.priceSui} SUI` : "Connect to run"}
-              </button>
-              <span className="font-mono text-[11px] text-ink/40">
-                {onChain ? "inference_market::buy_inference_entry" : "simulated (no on-chain registry for this model)"}
-              </span>
-            </div>
+            {isJudge0 ? (
+              <div className="mt-4 rounded-md border border-dashed border-accent/30 bg-accent/[0.04] px-4 py-3 font-mono text-[11px] text-ink/55">
+                This model is graded by Judge0 — buy &amp; verify it in the
+                <span className="text-accent"> Verified run</span> panel below.
+              </div>
+            ) : (
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <button
+                  onClick={run}
+                  disabled={running}
+                  className="rounded-full border border-ink bg-ink px-5 py-2.5 text-sm font-medium text-background transition-colors hover:bg-transparent hover:text-ink disabled:opacity-60"
+                >
+                  {running ? "Running…" : account ? `Run · ${listing.priceSui} SUI` : "Connect to run"}
+                </button>
+                <span className="font-mono text-[11px] text-ink/40">
+                  {onChain ? "inference_market::buy_inference_entry" : "simulated (no on-chain registry for this model)"}
+                </span>
+              </div>
+            )}
 
             {/* output — preview on load (free), live result after a paid run */}
             <div className={`mt-5 rounded-md border p-4 ${shown.verified ? "border-accent/30 bg-accent/[0.06]" : "border-rose-500/30 bg-rose-500/[0.06]"}`}>
@@ -353,6 +364,16 @@ export default function ListingDetailPage() {
               read live from ModelRegistry {REGISTRY?.slice(0, 12)}… — versions are LoRA adapter blobs on Walrus
             </p>
           </section>
+        )}
+
+        {isJudge0 && (
+          <VerifiedRunPanel
+            listing={listing}
+            pkg={PKG}
+            registry={REGISTRY ?? listing.id}
+            env={MARKET_ENV ?? listing.environmentId}
+            taskId={sampleIdx}
+          />
         )}
 
         <VerifierPanel

@@ -13,6 +13,8 @@ export interface OnChainRegistry {
   totalCalls: number;
   feePoolMist: number;
   versions: OnChainVersion[];
+  verifiedCalls: number;
+  lastPassBps: number;
 }
 
 /** Live read of a ModelRegistry object from Sui (versions, fees, calls). */
@@ -38,6 +40,8 @@ export function useRegistry(registryId?: string) {
         totalCalls: Number(f.total_calls ?? 0),
         feePoolMist: Number(f.fee_pool ?? 0),
         versions,
+        verifiedCalls: Number(f.verified_calls ?? 0),
+        lastPassBps: Number(f.last_pass_bps ?? 0),
       };
     },
   });

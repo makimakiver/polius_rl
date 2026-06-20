@@ -10,10 +10,18 @@ import {
 } from "../data/market";
 
 /** A deployed inference model, summarized. Clicking opens its detail page. */
-export default function ListingCard({ listing }: { listing: Listing }) {
+export default function ListingCard({
+  listing,
+  verifiedCalls,
+}: {
+  listing: Listing;
+  /** Live count of on-chain VerifiedReceipts for this model (judge0 only). */
+  verifiedCalls?: number;
+}) {
   const model = versionAt(listing, listing.currentVersion);
   const curve = passCurve(listing, listing.currentVersion);
   const training = listing.currentVersion < maxVersion(listing);
+  const isJudge0 = listing.verifier.kind === "judge0";
 
   return (
     <Link
@@ -50,24 +58,36 @@ export default function ListingCard({ listing }: { listing: Listing }) {
         </div>
       </div>
 
-      {/* verifier: on-chain (PnL) vs off-chain (Lean) — a property of the model */}
-      <div className="mt-4">
+      {/* verifier: on-chain (PnL) / off-chain (Lean) / judge0 (sandbox) — a property of the model */}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <span
           className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] ${
-            listing.verifier.kind === "onchain"
-              ? "border-accent/40 bg-accent/[0.08] text-accent"
-              : "border-ink/20 bg-white/50 text-ink/60"
+            listing.verifier.kind === "offchain"
+              ? "border-ink/20 bg-white/50 text-ink/60"
+              : "border-accent/40 bg-accent/[0.08] text-accent"
           }`}
           title={listing.verifier.detail}
         >
           <span
             className={`h-1.5 w-1.5 rounded-full ${
-              listing.verifier.kind === "onchain" ? "bg-accent" : "bg-ink/40"
+              listing.verifier.kind === "offchain" ? "bg-ink/40" : "bg-accent"
             }`}
           />
-          {listing.verifier.kind === "onchain" ? "on-chain verifier" : "off-chain verifier"} ·{" "}
-          {listing.verifier.name}
+          {listing.verifier.kind === "onchain"
+            ? "on-chain verifier"
+            : listing.verifier.kind === "judge0"
+              ? "judge0 verifier"
+              : "off-chain verifier"}{" "}
+          · {listing.verifier.name}
         </span>
+        {isJudge0 && (
+          <span
+            className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/[0.08] px-2 py-1 font-mono text-[10px] tabular-nums text-emerald-600"
+            title="on-chain VerifiedReceipts attested for this model"
+          >
+            Verified ✓ {(verifiedCalls ?? 0).toLocaleString()}
+          </span>
+        )}
       </div>
 
       <div className="mt-4 flex items-center justify-between border-t border-ink/10 pt-3 font-mono text-[11px] text-ink/40">

@@ -1,6 +1,6 @@
 // scripts/mpp-record.ts — submit record_verified_inference. Run via: node scripts/mpp-record.ts (JSON on stdin)
 import { Transaction } from "@mysten/sui/transactions";
-import { SuiClient } from "@mysten/sui/client";
+import { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { fromHex } from "@mysten/sui/utils";
 
@@ -8,7 +8,10 @@ const chunks: Buffer[] = [];
 process.stdin.on("data", (c) => chunks.push(c));
 process.stdin.on("end", async () => {
   const p = JSON.parse(Buffer.concat(chunks).toString());
-  const client = new SuiClient({ url: p.rpc });
+  const client = new SuiJsonRpcClient({
+    network: (p.network ?? "testnet") as "testnet" | "mainnet" | "devnet" | "localnet",
+    url: p.rpc,
+  });
   const kp = Ed25519Keypair.fromSecretKey(p.sk); // suiprivkey... or 32B hex
   const tx = new Transaction();
   tx.moveCall({

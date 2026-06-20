@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { WalletButton } from "./wallet";
-import { DashboardIcon, LayersIcon, ActivityIcon, SettingsIcon, PlusIcon, BotIcon } from "./icons";
+import { DashboardIcon, LayersIcon, ActivityIcon, SettingsIcon, PlusIcon, BotIcon, CoinsIcon } from "./icons";
 
 const nav = [
   { label: "Dashboard", href: "/", icon: DashboardIcon },
   { label: "Market", href: "/market", icon: ActivityIcon },
+  { label: "Portfolio", href: "/portfolio", icon: CoinsIcon },
   { label: "Agents", href: "/agents", icon: BotIcon },
   { label: "Environments", href: "/environments", icon: LayersIcon },
   { label: "Deploy", href: "/deploy", icon: PlusIcon },

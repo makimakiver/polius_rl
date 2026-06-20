@@ -28,7 +28,7 @@ export interface ModelVersion {
  *   - on-chain : DeFi trading (realized PnL after gas/slippage, settled on Sui)
  */
 export interface Verifier {
-  kind: "onchain" | "offchain";
+  kind: "onchain" | "offchain" | "judge0";
   name: string;
   detail: string;
 }
@@ -68,6 +68,11 @@ export interface RunResult {
   passRateBps: number;
   attestationBlobId: string;
   txDigest?: string;
+  // judge0-verified runs (executed in a sandbox via MPP, attested on Sui):
+  status?: string;
+  judge0Token?: string;
+  usdcPayDigest?: string;
+  verifiedReceiptId?: string;
 }
 
 const generated: Listing[] = (
@@ -115,6 +120,37 @@ const seeded: Listing[] = [
         goodOutput:
           "Sell 1,200 SUI into the asks up to the oracle mid; expected +0.8% net of gas/slippage. Verified by realized PnL on settlement.",
         badOutput: "Buy more SUI — price is going up.",
+        minVersion: 2,
+      },
+    ],
+  },
+  {
+    id: "sort-list",
+    modelName: "qwen-0.5b-sorter",
+    task: "Sort integers (negatives + duplicates)",
+    environmentId: "sort-list",
+    verifier: {
+      kind: "judge0",
+      name: "Judge0",
+      detail:
+        "code executed in a sandbox via MPP (0.02 USDC), verdict attested on Sui",
+    },
+    priceSui: 0.1,
+    priceMist: 100_000_000,
+    currentVersion: 0,
+    versions: [
+      { v: 0, passRateBps: 2000, walrusBlobId: "nUEB_sort_v0" },
+      { v: 1, passRateBps: 3500, walrusBlobId: "nUEB_sort_v1" },
+      { v: 2, passRateBps: 8000, walrusBlobId: "nUEB_sort_v2" },
+      { v: 3, passRateBps: 10000, walrusBlobId: "nUEB_sort_v3" },
+    ],
+    totalCalls: 0,
+    deployedAt: "2026-06-20",
+    samples: [
+      {
+        input: "5 -3 5 0 -3 9",
+        goodOutput: "-3 -3 0 5 5 9",
+        badOutput: "5 -3 5 0 -3 9",
         minVersion: 2,
       },
     ],

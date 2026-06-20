@@ -7,13 +7,18 @@ import AppShell from "../components/AppShell";
 import ListingCard from "../components/ListingCard";
 import { LISTINGS, passPct, versionAt } from "../data/market";
 import { shortAddress } from "../data/environments";
+import { useRegistry } from "../hooks/useRegistry";
 
 const num = new Intl.NumberFormat("en-US");
+const sui = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
+
+const REGISTRY = process.env.NEXT_PUBLIC_MARKET_REGISTRY;
 
 const VERIFIER_FILTERS = [
   { key: "all", label: "All" },
   { key: "onchain", label: "On-chain" },
   { key: "offchain", label: "Off-chain" },
+  { key: "judge0", label: "Judge0" },
 ] as const;
 type VerifierFilter = (typeof VERIFIER_FILTERS)[number]["key"];
 
@@ -21,18 +26,24 @@ export default function MarketPage() {
   const account = useCurrentAccount();
   const [vf, setVf] = useState<VerifierFilter>("all");
 
+  // Live verified-call count from the deployed registry (Suilend-style live KPI).
+  const reg = useRegistry(REGISTRY);
+
   const visible = LISTINGS.filter((l) => vf === "all" || l.verifier.kind === vf);
 
   const totalCalls = LISTINGS.reduce((s, l) => s + l.totalCalls, 0);
+  // Fee TVL stand-in: lifetime fees taken across listings (calls · price).
+  const feeTvlSui = LISTINGS.reduce((s, l) => s + l.totalCalls * l.priceSui, 0);
+  const verifiedCalls = reg.data?.verifiedCalls ?? 0;
   const avgPassBps =
     LISTINGS.reduce((s, l) => s + versionAt(l, l.currentVersion).passRateBps, 0) /
     LISTINGS.length;
 
   const stats = [
-    { label: "Deployments", value: num.format(LISTINGS.length) },
+    { label: "Total Fee TVL", value: `${sui.format(feeTvlSui)} SUI` },
     { label: "Total calls", value: num.format(totalCalls) },
-    { label: "Avg pass rate", value: passPct(avgPassBps) },
-    { label: "Network", value: "Sui testnet" },
+    { label: "Verified calls", value: num.format(verifiedCalls) },
+    { label: "Avg pass-rate", value: passPct(avgPassBps) },
   ];
 
   return (
@@ -59,7 +70,7 @@ export default function MarketPage() {
         <section className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-ink/15 bg-ink/10 sm:grid-cols-4">
           {stats.map((s) => (
             <div key={s.label} className="bg-background p-4">
-              <div className="font-mono text-xl">{s.value}</div>
+              <div className="font-mono text-xl tabular-nums">{s.value}</div>
               <div className="mt-1 font-mono text-[11px] uppercase tracking-wide text-ink/40">
                 {s.label}
               </div>
@@ -99,7 +110,11 @@ export default function MarketPage() {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {visible.map((l) => (
-                <ListingCard key={l.id} listing={l} />
+                <ListingCard
+                  key={l.id}
+                  listing={l}
+                  verifiedCalls={l.verifier.kind === "judge0" ? verifiedCalls : undefined}
+                />
               ))}
             </div>
           )}
