@@ -158,6 +158,30 @@ on-disk LoRA is Lean-trained and does not change the sort output). The real *tra
 improvement lives in the companion SGS Lean prover (`pollius_demo_llm_post_training`), which is what the
 `lean-prover` listing represents.
 
+## 4d. Compute backend — where inference runs
+
+The served generation is produced by a pluggable backend, chosen by `LLM_BACKEND` and reported honestly
+in `/verify.generator` + the UI:
+
+| `LLM_BACKEND` | Where it runs | Generator label |
+|---|---|---|
+| `mpp` (product default) | **MPP AI gateway** — a hosted model, paid per call in **USDC on Sui** (x402), same settlement as Judge0. No GPU. | `mpp:groq/llama-3.3-70b-versatile` |
+| `local` | local `transformers` model on the host (Qwen-0.5B) | `qwen-0.5b` |
+| _unset_ | deterministic stand-in | `stand-in` |
+
+**MPP AI, live (real paid inference):**
+```bash
+LLM_BACKEND=mpp MPP_MODE=live MPP_LLM_PROVIDER=groq MPP_LLM_MODEL=llama-3.3-70b-versatile \
+  uv run uvicorn verifier.service:app --port 8077
+```
+`POST https://mpp.t2000.ai/groq/v1/chat/completions` returns **402** with an x402 challenge
+(`method="sui"`, `network: sui:mainnet`, **0.02 USDC**, recipient `0xb012ac77…`); the payer (`@t2000/sdk`,
+needs a funded mainnet USDC wallet) settles it and retries. Verified live: the endpoint + 402 challenge are
+real. `MPP_MODE=mock` (default) skips the USDC payment and returns a canned program labelled `(mock)`.
+
+So the full **product** loop settles on Sui end-to-end: **buy (SUI) → generate (USDC→MPP AI) →
+grade (USDC→MPP Judge0) → verdict attested on Sui**. No GPU to operate.
+
 ## 5. What proves it's honest
 
 - The `pass_bps` on the chart is the **same** number the RL loop optimizes and that buyers re-check.

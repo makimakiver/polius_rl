@@ -52,9 +52,11 @@ def generate_solution(task_id: int, version: int) -> str:
     Otherwise a deterministic version-conditioned stand-in is used — honestly
     labelled as such via verifier.llm.generator_name().
     """
-    from verifier import llm
+    from verifier import llm, mpp_llm
+    if mpp_llm.enabled():
+        return mpp_llm.generate(TASKS[task_id].prompt)  # MPP-fronted hosted model (USDC on Sui)
     if llm.available():
-        return llm.generate(TASKS[task_id].prompt)
+        return llm.generate(TASKS[task_id].prompt)      # local transformers model
     # stand-in: task 1 (easy) correct from v0; task 7 (frontier) correct only from v2+
     if task_id == 1:
         return _CORRECT
