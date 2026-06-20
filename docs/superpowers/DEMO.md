@@ -102,6 +102,33 @@ receives `402`, settles **0.02 USDC on Sui mainnet** via the x402 handshake (`@t
 and gets a real Judge0 execution result + token. Everything else is identical — the on-chain
 `VerifiedReceipt` now references a real Judge0 submission anyone can re-run.
 
+## 4b. Executed run — localnet proof (2026-06-20)
+
+The full loop was executed end-to-end on a live local Sui network (`sui start --with-faucet
+--force-regenesis`, chain `ee2ae89f`, RPC `:9000`, faucet `:9123`) — every step is a real on-chain
+transaction, not a simulation. Reproduce with `sui client switch --env localnet` + the commands above
+(use `sui client test-publish --build-env testnet` for the localnet publish).
+
+| Object | Id |
+|---|---|
+| package | `0xa2013b61bd12f78ad5d9d67e4768dd73be7f6b4217ab28647caa7ab53ae704f7` |
+| Environment (sort-list) | `0xd99c79cc9668225c27711dc1e54eb39c4aa511884f5b14891b9721e750988520` |
+| ModelRegistry | `0x4f001a6ba881bf6cab5accedc21c7850cb73b3a8b47807cb6d4b3e75f2dcb6e4` |
+| VerifiedReceipt — **v0 FAIL** (pass 0%) | `0xebcffca0c7e92856c13e95ae77de28f7d51c746aa4cde13afd3abb8232c32a2e` |
+| VerifiedReceipt — **v3 PASS** (pass 100%) | `0x7a7b56b30a2fa0cdf20800cdb355974323d89ac2fe5bba7ba3782c07e3afc739` |
+
+Outcome (read live from the registry):
+
+```
+buy #1 → served v0 → Judge0 → Wrong Answer → FAIL  → VerifiedReceipt pass_bps=0
+promote v1→v2→v3 (publish_checkpoint)              → current_best=3, pass_rate=10000
+buy #2 → served v3 → Judge0 → "-3 -3 0 5 5 9" ✓    → VerifiedReceipt pass_bps=10000
+final: verified_calls=2 · last_pass_bps=10000 · registry fee_pool=0.14 SUI · env fee_pool=0.06 SUI
+```
+
+The on-chain `secp256k1_verify` accepted **live, per-call signatures** (not the static test vector) over
+the real verdict fields — proving the verifier service's signer round-trips against the deployed contract.
+
 ## 5. What proves it's honest
 
 - The `pass_bps` on the chart is the **same** number the RL loop optimizes and that buyers re-check.
