@@ -50,3 +50,32 @@ def attest_epoch(*, env_id, model, n_samples, mean_reward_bps, pass_bps,
                     dataset_hash=dataset_hash, timestamp_ms=timestamp_ms, intent=intent)
     digest = hashlib.sha256(msg).digest()
     return PrivateKey(bytes.fromhex(ENCLAVE_SK)).sign_recoverable(digest, hasher=None)[:64]
+
+
+# Live AWS Nitro enclave (Nautilus via Oyster). When ENCLAVE_URL is set the epoch
+# is attested by the REAL enclave's TEE-held key instead of the local seed key.
+ENCLAVE_URL = os.environ.get("ENCLAVE_URL", "")
+
+
+def enclave_available() -> bool:
+    return bool(ENCLAVE_URL)
+
+
+def attest_epoch_via_enclave(*, env_id, model, n_samples, mean_reward_bps,
+                             pass_bps, dataset_hash: bytes) -> dict:
+    """Ask the deployed Nitro enclave to sign the epoch result.
+
+    Returns {attester_pk, signature, timestamp_ms, intent} — the enclave's
+    TEE-held key signs, so verify_epoch on-chain checks against the genuine
+    enclave pubkey (registered via its Nitro attestation).
+    """
+    import httpx
+    r = httpx.post(f"{ENCLAVE_URL.rstrip('/')}/attest-epoch", timeout=30, json={
+        "env_id": env_id, "model": model, "n_samples": n_samples,
+        "mean_reward_bps": mean_reward_bps, "pass_bps": pass_bps,
+        "dataset_hash": "0x" + dataset_hash.hex(),
+    })
+    r.raise_for_status()
+    d = r.json()
+    return {"attester_pk": d["attester_pk"], "signature": d["signature"],
+            "timestamp_ms": int(d["timestamp_ms"]), "intent": int(d["intent"])}

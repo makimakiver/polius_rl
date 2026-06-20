@@ -182,6 +182,35 @@ real. `MPP_MODE=mock` (default) skips the USDC payment and returns a canned prog
 So the full **product** loop settles on Sui end-to-end: **buy (SUI) → generate (USDC→MPP AI) →
 grade (USDC→MPP Judge0) → verdict attested on Sui**. No GPU to operate.
 
+## 4e. Real Nitro enclave (Nautilus) attestation
+
+The env-verification epoch can be attested by a **real AWS Nitro enclave** deployed via Marlin
+Oyster (`oyster-cvm`), instead of the local seed key. Deployed from `../nautilus_practice/`:
+
+```
+enclave (Oyster job 190)  IP 13.126.43.205   ~20h   image albeit3405/pollius@sha256:c15273…
+  pubkey (TEE-generated)  0x03a7e8fe566ad64bd12089e6065d79e61c039d6d5051f90b15d2806a4680017f50
+  PCR16 (imageId)         13436cf54b43c85117ea51474a63a48745fa2e8b512cb4ad1913f2268a029822
+  PCR0/1/2                Oyster base/blue/v3.0.0/arm64 (matches register.move)
+  endpoints  :3000 /health /public-key /attest-epoch   :1301 /attestation/hex
+```
+
+The enclave's `/attest-epoch` serializes our `EpochPayload` (identical BCS to `env_verifier.move`)
+and signs it with the **key generated inside the TEE**. Wire it in by setting `ENCLAVE_URL`:
+
+```bash
+ENCLAVE_URL=http://13.126.43.205:3000 REAL_LLM=1 ... uvicorn verifier.service:app --port 8077
+```
+
+`/verify-env` then returns `attested_by: "nitro-enclave"` with the enclave's real pubkey + signature.
+**Proven on testnet:** the enclave signed an epoch result and `env_verifier::verify_epoch` accepted it
+against the enclave pubkey → `EpochAttestation 0x6c745707…` minted. Verify the enclave independently with
+`oyster-cvm verify --enclave-ip 13.126.43.205`.
+
+> Funding note: a 40h deploy costs ~3.94 USDC (0.0986/hr); this run was ~20h (1.97 USDC) because the
+> wallet's spendable USDC was 2.10 at deploy time. Re-run `oyster-cvm deploy … --duration-in-minutes 2400`
+> after topping up USDC to extend to 40h — no code changes needed.
+
 ## 5. What proves it's honest
 
 - The `pass_bps` on the chart is the **same** number the RL loop optimizes and that buyers re-check.

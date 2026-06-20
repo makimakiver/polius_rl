@@ -123,16 +123,25 @@ def verify_env(req: VerifyEnvReq):
         dataset = epoch_mod.default_dataset()
     model_fn = epoch_mod.make_model_fn()
     result = epoch_mod.run_epoch(dataset, model_fn)
-    ts = _now_ms()
-    sig = nautilus.attest_epoch(
-        env_id=req.env_id, model=SAMPLE_MODEL, n_samples=result["n_samples"],
-        mean_reward_bps=result["mean_reward_bps"], pass_bps=result["pass_bps"],
-        dataset_hash=result["dataset_hash"], timestamp_ms=ts)
-    return {
+    out = {
         "env": req.env_id, "model": SAMPLE_MODEL,
         "n_samples": result["n_samples"], "mean_reward_bps": result["mean_reward_bps"],
         "pass_bps": result["pass_bps"], "dataset_hash": "0x" + result["dataset_hash"].hex(),
-        "intent": nautilus.INTENT_SCOPE, "timestamp_ms": ts,
-        "attester_pk": "0x" + nautilus.attester_pk().hex(),
-        "signature": "0x" + sig.hex(),
     }
+    if nautilus.enclave_available():
+        # REAL Nitro enclave (Nautilus) attests the result with its TEE-held key.
+        att = nautilus.attest_epoch_via_enclave(
+            env_id=req.env_id, model=SAMPLE_MODEL, n_samples=result["n_samples"],
+            mean_reward_bps=result["mean_reward_bps"], pass_bps=result["pass_bps"],
+            dataset_hash=result["dataset_hash"])
+        out.update(attester_pk=att["attester_pk"], signature=att["signature"],
+                   intent=att["intent"], timestamp_ms=att["timestamp_ms"], attested_by="nitro-enclave")
+    else:
+        ts = _now_ms()
+        sig = nautilus.attest_epoch(
+            env_id=req.env_id, model=SAMPLE_MODEL, n_samples=result["n_samples"],
+            mean_reward_bps=result["mean_reward_bps"], pass_bps=result["pass_bps"],
+            dataset_hash=result["dataset_hash"], timestamp_ms=ts)
+        out.update(attester_pk="0x" + nautilus.attester_pk().hex(), signature="0x" + sig.hex(),
+                   intent=nautilus.INTENT_SCOPE, timestamp_ms=ts, attested_by="local-seed")
+    return out
