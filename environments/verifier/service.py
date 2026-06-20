@@ -17,6 +17,10 @@ ENV = {
 }
 VERIFIER_SK = os.environ.get("VERIFIER_SK", "".join(f"{i:02x}" for i in range(1, 33)))
 MPP_MODE = os.environ.get("MPP_MODE", "mock")
+# "client" (default): return the signed verdict for the buyer's wallet to submit
+#   record_verified_inference itself (no server-side gas key needed).
+# "server": the service submits it via scripts/mpp-record.ts (needs SUI_SUBMITTER_SK).
+SUBMIT_MODE = os.environ.get("SUBMIT_MODE", "client")
 
 
 class VerifyReq(BaseModel):
@@ -44,15 +48,25 @@ def verify(req: VerifyReq):
                   pass_bps=pass_bps, output_hash=output_hash,
                   judge0_token=sample.token, ts=ts)
     sig = sign_verdict(VERIFIER_SK, **fields)
-    rec = submit_verdict(
-        {**ENV}, receipt_id=req.receipt_id, buyer=rc["buyer"], version=version,
-        task_id=req.task_id, pass_bps=pass_bps, output_hash="0x" + output_hash.hex(),
-        judge0_token=sample.token, ts=ts, signature_hex="0x" + sig.hex())
-    return {"solution": source, "status": sample.status, "verified": pass_bps == 10000,
-            "pass_bps": pass_bps, "judge0_token": sample.token,
-            "output_hash": "0x" + output_hash.hex(), "usdc_pay_digest": sample.usdc_pay_digest,
-            "record_digest": rec["record_digest"], "verified_receipt_id": rec["verified_receipt_id"],
-            "version": version}
+    # The signed verdict — enough for ANYONE to submit record_verified_inference.
+    verdict = {
+        "registry": ENV["registry"], "receipt_id": req.receipt_id, "buyer": rc["buyer"],
+        "version": version, "task_id": req.task_id, "pass_bps": pass_bps,
+        "output_hash": "0x" + output_hash.hex(), "judge0_token": sample.token,
+        "ts": ts, "signature": "0x" + sig.hex(),
+    }
+    out = {"solution": source, "status": sample.status, "verified": pass_bps == 10000,
+           "pass_bps": pass_bps, "judge0_token": sample.token,
+           "output_hash": "0x" + output_hash.hex(), "usdc_pay_digest": sample.usdc_pay_digest,
+           "version": version, "verdict": verdict, "submit_mode": SUBMIT_MODE}
+    if SUBMIT_MODE == "server":
+        rec = submit_verdict(
+            {**ENV}, receipt_id=req.receipt_id, buyer=rc["buyer"], version=version,
+            task_id=req.task_id, pass_bps=pass_bps, output_hash="0x" + output_hash.hex(),
+            judge0_token=sample.token, ts=ts, signature_hex="0x" + sig.hex())
+        out["record_digest"] = rec["record_digest"]
+        out["verified_receipt_id"] = rec["verified_receipt_id"]
+    return out
 
 
 def _now_ms() -> int:

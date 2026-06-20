@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Transaction } from "@mysten/sui/transactions";
+import { fromHex } from "@mysten/sui/utils";
 import {
   useSignAndExecuteTransaction,
   useSuiClient,
@@ -33,7 +34,7 @@ export function VerifiedRunPanel({
   const client = useSuiClient();
   const { mutateAsync: signExec } = useSignAndExecuteTransaction();
   const [state, setState] = useState<
-    "idle" | "paying" | "verifying" | "done" | "error"
+    "idle" | "paying" | "verifying" | "recording" | "done" | "error"
   >("idle");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [result, setResult] = useState<any>(null);
@@ -80,7 +81,52 @@ export function VerifiedRunPanel({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ receipt_id: receiptId, task_id: taskId }),
       });
-      setResult(await r.json());
+      const text = await r.text();
+      if (!r.ok || !text) {
+        throw new Error(
+          `verifier service unreachable (${r.status}). Start it: cd environments && uv run uvicorn verifier.service:app --port 8077`,
+        );
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = JSON.parse(text);
+
+      // Client-submit mode: the service signed the verdict; OUR wallet records it
+      // on-chain (no server-side gas key). Server mode already includes record_digest.
+      if (data.verdict && !data.record_digest) {
+        setState("recording");
+        const v = data.verdict;
+        const rtx = new Transaction();
+        rtx.moveCall({
+          target: `${pkg}::inference_market::record_verified_inference`,
+          arguments: [
+            rtx.object(v.registry),
+            rtx.pure.id(v.receipt_id),
+            rtx.pure.address(v.buyer),
+            rtx.pure.u64(v.version),
+            rtx.pure.u64(v.task_id),
+            rtx.pure.u64(v.pass_bps),
+            rtx.pure.vector("u8", Array.from(fromHex(String(v.output_hash).replace(/^0x/, "")))),
+            rtx.pure.string(v.judge0_token),
+            rtx.pure.u64(v.ts),
+            rtx.pure.vector("u8", Array.from(fromHex(String(v.signature).replace(/^0x/, "")))),
+          ],
+        });
+        const recd = await signExec({ transaction: rtx });
+        await client.waitForTransaction({ digest: recd.digest });
+        const rblock = await client.getTransactionBlock({
+          digest: recd.digest,
+          options: { showObjectChanges: true },
+        });
+        const vr = rblock.objectChanges?.find(
+          (c) =>
+            c.type === "created" &&
+            String(c.objectType ?? "").endsWith("::VerifiedReceipt"),
+        );
+        data.record_digest = recd.digest;
+        data.verified_receipt_id =
+          vr && vr.type === "created" ? vr.objectId : undefined;
+      }
+      setResult(data);
       setState("done");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -93,7 +139,8 @@ export function VerifiedRunPanel({
     }
   }
 
-  const busy = state === "paying" || state === "verifying";
+  const busy =
+    state === "paying" || state === "verifying" || state === "recording";
 
   return (
     <section className="mt-6 rounded-lg border border-accent/30 bg-accent/[0.04] p-5">
@@ -116,7 +163,9 @@ export function VerifiedRunPanel({
             ? "Paying…"
             : state === "verifying"
               ? "Verifying in Judge0…"
-              : `Run current model · ${listing.priceSui} SUI`}
+              : state === "recording"
+                ? "Recording verdict…"
+                : `Run current model · ${listing.priceSui} SUI`}
         </button>
         <span className="font-mono text-[11px] text-ink/40">
           inference_market::buy_inference_entry → MPP Judge0 (0.02 USDC) →
