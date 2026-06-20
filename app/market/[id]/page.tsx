@@ -71,11 +71,6 @@ export default function ListingDetailPage() {
     if (version >= maxV && timer.current) clearInterval(timer.current);
   }, [version, maxV]);
 
-  const curve = useMemo(
-    () => (listing ? passCurve(listing, version) : []),
-    [listing, version],
-  );
-
   // Live read of the on-chain ModelRegistry (hook must run before any early return).
   const reg = useRegistry(REGISTRY && MARKET_ENV ? REGISTRY : undefined);
 
@@ -288,8 +283,8 @@ export default function ListingDetailPage() {
               <h2 className="text-sm font-medium uppercase tracking-wide">Self-improvement</h2>
               <StatusDot label={auto && version < maxV ? "training" : "idle"} dotClass={auto && version < maxV ? "bg-accent" : "bg-ink/40"} />
             </div>
-            <Sparkline data={curve.length > 1 ? curve : [...curve, ...curve]} height={120} className="text-accent" />
-            <p className="mt-2 font-mono text-[11px] text-ink/50">verifier pass rate per published checkpoint (Walrus LoRA adapters)</p>
+            <Sparkline data={passCurve(listing, maxV)} height={120} className="text-accent" />
+            <p className="mt-2 font-mono text-[11px] text-ink/50">verifier pass rate per published checkpoint (Walrus LoRA adapters) · now serving v{version}</p>
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <button onClick={() => setAuto((a) => !a)} className="rounded-md border border-ink/15 px-3 py-1.5 text-xs text-ink/70 transition-colors hover:bg-ink/[0.04]">

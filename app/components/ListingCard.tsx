@@ -19,7 +19,9 @@ export default function ListingCard({
   verifiedCalls?: number;
 }) {
   const model = versionAt(listing, listing.currentVersion);
-  const curve = passCurve(listing, listing.currentVersion);
+  // Show the full published trajectory so the self-improvement climb is always
+  // legible (a single-version model would otherwise render as a flat line).
+  const curve = passCurve(listing, maxVersion(listing));
   const training = listing.currentVersion < maxVersion(listing);
   const isJudge0 = listing.verifier.kind === "judge0";
 
