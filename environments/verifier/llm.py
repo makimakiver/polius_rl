@@ -66,16 +66,20 @@ def _extract_code(text: str) -> str:
     return (m.group(1) if m else text).strip()
 
 
-def generate(task_prompt: str, max_new_tokens: int = 220) -> str:
-    """Run the trained model and return an executable Python program (real inference)."""
+def generate_chat(system: str, user: str, max_new_tokens: int = 64) -> str:
+    """Greedy chat completion from the loaded model (raw text, no code extraction)."""
     model, tok = _load()
     torch = _CACHE["torch"]
     enc = tok.apply_chat_template(
-        [{"role": "system", "content": _SYSTEM}, {"role": "user", "content": task_prompt}],
+        [{"role": "system", "content": system}, {"role": "user", "content": user}],
         add_generation_prompt=True, return_tensors="pt", return_dict=True,
     )
     with torch.no_grad():
         out = model.generate(**enc, max_new_tokens=max_new_tokens, do_sample=False,
                              pad_token_id=tok.eos_token_id)
-    gen = tok.batch_decode(out[:, enc["input_ids"].shape[1]:], skip_special_tokens=True)[0]
-    return _extract_code(gen)
+    return tok.batch_decode(out[:, enc["input_ids"].shape[1]:], skip_special_tokens=True)[0]
+
+
+def generate(task_prompt: str, max_new_tokens: int = 220) -> str:
+    """Run the trained model and return an executable Python program (real inference)."""
+    return _extract_code(generate_chat(_SYSTEM, task_prompt, max_new_tokens))

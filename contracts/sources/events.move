@@ -148,3 +148,25 @@ public(package) fun emit_inference_verified(
         registry, buyer, version, task_id, pass_bps, judge0_token, output_hash,
     });
 }
+
+// ---- environment verification (Nautilus-attested epoch) ----------------
+
+/// Emitted when an environment passes a TEE-attested verification epoch on a
+/// sample OSS LLM. Carries the baseline result for the indexer/UI.
+public struct EnvVerified has copy, drop {
+    env: ID,
+    model: String,
+    mean_reward_bps: u64,
+    pass_bps: u64,
+    n_samples: u64,
+}
+
+public(package) fun emit_env_verified(
+    env: ID,
+    model: String,
+    mean_reward_bps: u64,
+    pass_bps: u64,
+    n_samples: u64,
+) {
+    event::emit(EnvVerified { env, model, mean_reward_bps, pass_bps, n_samples });
+}

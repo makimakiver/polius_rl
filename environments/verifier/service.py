@@ -74,3 +74,65 @@ def verify(req: VerifyReq):
 def _now_ms() -> int:
     import time
     return int(time.time() * 1000)
+
+
+# ---- environment deploy + Nautilus-attested verification epoch ----------
+
+import pathlib
+from verifier import epoch as epoch_mod
+from verifier import nautilus
+
+ENV_STORE = pathlib.Path(os.environ.get("ENV_STORE", str(pathlib.Path(__file__).parent / "deployed_envs")))
+SAMPLE_MODEL = os.environ.get("SAMPLE_MODEL", "qwen-0.5b" if os.environ.get("REAL_LLM") == "1" else "stand-in")
+
+
+class DeployEnvReq(BaseModel):
+    name: str
+    dataset: list | None = None  # [{question, answer}]; default sort-list set if omitted
+
+
+class VerifyEnvReq(BaseModel):
+    env_id: str
+    dataset: list | None = None
+
+
+@app.post("/deploy-env")
+def deploy_env(req: DeployEnvReq):
+    """Store a deployed RL environment's dataset; return its hash + artifact uri.
+
+    The on-chain Environment is created by the user's wallet (create_world_entry)
+    with the returned artifact_uri; the dataset_hash binds the later epoch attestation.
+    """
+    dataset = req.dataset or epoch_mod.default_dataset()
+    dhash = epoch_mod.dataset_hash(dataset)
+    ENV_STORE.mkdir(parents=True, exist_ok=True)
+    key = dhash.hex()[:16]
+    (ENV_STORE / f"{key}.json").write_text(__import__("json").dumps(
+        {"name": req.name, "dataset": dataset}))
+    return {"name": req.name, "n_tasks": len(dataset), "dataset_hash": "0x" + dhash.hex(),
+            "artifact_uri": f"walrus://env/{key}"}
+
+
+@app.post("/verify-env")
+def verify_env(req: VerifyEnvReq):
+    """Run one epoch on the sample OSS LLM, attest the result via Nautilus, and
+    return the signed attestation for the wallet to submit `verify_epoch_entry`."""
+    dataset = req.dataset
+    if dataset is None:
+        # try the stored bundle by env, else the default set
+        dataset = epoch_mod.default_dataset()
+    model_fn = epoch_mod.make_model_fn()
+    result = epoch_mod.run_epoch(dataset, model_fn)
+    ts = _now_ms()
+    sig = nautilus.attest_epoch(
+        env_id=req.env_id, model=SAMPLE_MODEL, n_samples=result["n_samples"],
+        mean_reward_bps=result["mean_reward_bps"], pass_bps=result["pass_bps"],
+        dataset_hash=result["dataset_hash"], timestamp_ms=ts)
+    return {
+        "env": req.env_id, "model": SAMPLE_MODEL,
+        "n_samples": result["n_samples"], "mean_reward_bps": result["mean_reward_bps"],
+        "pass_bps": result["pass_bps"], "dataset_hash": "0x" + result["dataset_hash"].hex(),
+        "intent": nautilus.INTENT_SCOPE, "timestamp_ms": ts,
+        "attester_pk": "0x" + nautilus.attester_pk().hex(),
+        "signature": "0x" + sig.hex(),
+    }
