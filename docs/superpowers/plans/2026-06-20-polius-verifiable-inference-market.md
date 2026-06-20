@@ -17,7 +17,8 @@
   - `verifier_pk` (33B): `0x0284bf7562262bbd6940085748f3be6afa52ae317155181ece31b66351ccffa4b0`
   - fields: `buyer=@0xB0B`, `version=0`, `task_id=7`, `pass_bps=5500`, `output_hash=0xdff0c75631fc7a9e44264518bf9cdea7bb1adb98387f74583c9a929004b2f92f` (= `sha256("0 1 2 3 4 5")`), `judge0_token="tok_demo_abc123"`, `ts=1718000000000`
   - `message_bcs`: `0x010000000000000000000000000000000000000000000000000000000000000b0b000000000000000007000000000000007c1500000000000020dff0c75631fc7a9e44264518bf9cdea7bb1adb98387f74583c9a929004b2f92f0f746f6b5f64656d6f5f616263313233009cc70090010000`
-  - `signature` (64B): `0x5e2485713a3314dd49028f83a99f270d30793105750799055ded65d2969b1c3e63256aa8cd20ad28570cd9fc4accc0770ea8d957ddaa25471c6f4729381d0113`
+  - `signature` (64B, single-hash via coincurve `sign_recoverable(sha256(msg), hasher=None)[:64]`): `0x8b1fdb4fb2ccefd2a30fa6d979284dccb743d3ac930f437ab177baa72d9435e2635b57f112aedb4740cf7c97addb70cb4a08705730f64da4461945003c3363bf`
+  - **Hashing scheme (idiomatic single-hash):** off-chain signs ECDSA digest `sha256(BCS)`; on-chain passes **raw BCS** to `secp256k1_verify(..., 1)` so Sui SHA256s it once. Move and the coincurve signer agree by construction (both single-hash). Do NOT double-hash.
 - MPP Judge0: `POST https://mpp.t2000.ai/judge0/v1/submissions` body `{source_code, language_id, stdin}`; 402 → pay 0.02 USDC on Sui → retry. Python language_id default `71` (Python 3). `MPP_MODE=mock` (default, canned responses) | `live`.
 - Frontend positioning: **Suilend** — dense, dark, data-first, wallet-first, live numbers.
 

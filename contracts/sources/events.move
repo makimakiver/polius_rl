@@ -96,6 +96,18 @@ public struct InferencePaid has copy, drop {
     to_registry: u64,
 }
 
+/// Emitted when a signed verdict is recorded on-chain. Carries the full
+/// verdict snapshot so the indexer / UI can reconstruct it from events alone.
+public struct InferenceVerified has copy, drop {
+    registry: ID,
+    buyer: address,
+    version: u64,
+    task_id: u64,
+    pass_bps: u64,
+    judge0_token: String,
+    output_hash: vector<u8>,
+}
+
 public(package) fun emit_registry_created(registry: ID, environment: ID, creator: address) {
     event::emit(RegistryCreated { registry, environment, creator });
 }
@@ -120,5 +132,19 @@ public(package) fun emit_inference_paid(
 ) {
     event::emit(InferencePaid {
         registry, buyer, version, theorem_id, amount, to_env, to_registry,
+    });
+}
+
+public(package) fun emit_inference_verified(
+    registry: ID,
+    buyer: address,
+    version: u64,
+    task_id: u64,
+    pass_bps: u64,
+    judge0_token: String,
+    output_hash: vector<u8>,
+) {
+    event::emit(InferenceVerified {
+        registry, buyer, version, task_id, pass_bps, judge0_token, output_hash,
     });
 }
