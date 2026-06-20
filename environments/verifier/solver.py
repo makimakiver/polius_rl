@@ -45,7 +45,17 @@ _NO_DEDUP_OK = _CORRECT  # placeholder for mid versions; correct for sort
 
 
 def generate_solution(task_id: int, version: int) -> str:
-    # task 1 (easy): correct from v0; task 7 (frontier): correct only from v2+
+    """Produce the served program.
+
+    REAL inference: if REAL_LLM=1 and the ML deps are present, the trained model
+    GENERATES the program (genuine LLM inference, graded by Judge0 downstream).
+    Otherwise a deterministic version-conditioned stand-in is used — honestly
+    labelled as such via verifier.llm.generator_name().
+    """
+    from verifier import llm
+    if llm.available():
+        return llm.generate(TASKS[task_id].prompt)
+    # stand-in: task 1 (easy) correct from v0; task 7 (frontier) correct only from v2+
     if task_id == 1:
         return _CORRECT
     return _CORRECT if version >= 2 else _IDENTITY

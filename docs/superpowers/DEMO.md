@@ -129,6 +129,35 @@ final: verified_calls=2 · last_pass_bps=10000 · registry fee_pool=0.14 SUI · 
 The on-chain `secp256k1_verify` accepted **live, per-call signatures** (not the static test vector) over
 the real verdict fields — proving the verifier service's signer round-trips against the deployed contract.
 
+## 4c. Real LLM inference (REAL_LLM=1)
+
+By default the verifier serves a **deterministic stand-in** program (honestly reported as
+`generator: "stand-in"` in `/verify` and shown as "stand-in (no model)" in the UI). To sell *real*
+trained-LLM inference, run the service with the model:
+
+```bash
+cd environments
+REAL_LLM=1 LLM_MODEL_DIR=/Users/makimakiver/qwen-0.5b PYTHONPATH=. \
+  MPP_MODE=mock SUBMIT_MODE=client \
+  NEXT_PUBLIC_PKG_ID=$PKG NEXT_PUBLIC_MARKET_REGISTRY=$REGISTRY \
+  python3 -m uvicorn verifier.service:app --port 8077    # python with torch+transformers+peft
+# optional trained adapter:  LLM_ADAPTER_DIR=/path/to/adapter_out
+```
+
+Then `/verify` loads Qwen-0.5B and **generates** the served program (`generator: "qwen-0.5b"`), which
+Judge0 executes and grades for real. Observed live (greedy, CPU, ~3–10s/gen):
+
+```
+task 7 (sort, negatives+duplicates) → model writes a correct sort_ascending() → Judge0 Accepted → PASS
+task 1 (easy ascending)             → model emits an incomplete program (defines fn, no stdin wiring) → FAIL
+```
+
+**Honest scope:** the served output is now genuine model inference. The multi-version *self-improvement
+curve* for the sort env remains **illustrative** — there are no sort-trained checkpoints on hand (the
+on-disk LoRA is Lean-trained and does not change the sort output). The real *trained-checkpoint*
+improvement lives in the companion SGS Lean prover (`pollius_demo_llm_post_training`), which is what the
+`lean-prover` listing represents.
+
 ## 5. What proves it's honest
 
 - The `pass_bps` on the chart is the **same** number the RL loop optimizes and that buyers re-check.

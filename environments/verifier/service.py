@@ -6,6 +6,7 @@ from verifier.solver import TASKS, generate_solution, score
 from verifier.mpp_judge0 import Judge0Client
 from verifier.verdict import sign_verdict, pubkey_compressed
 from verifier.sui_client import read_model, confirm_receipt, submit_verdict
+from verifier import llm
 
 app = FastAPI(title="Polius Verifier")
 
@@ -58,7 +59,8 @@ def verify(req: VerifyReq):
     out = {"solution": source, "status": sample.status, "verified": pass_bps == 10000,
            "pass_bps": pass_bps, "judge0_token": sample.token,
            "output_hash": "0x" + output_hash.hex(), "usdc_pay_digest": sample.usdc_pay_digest,
-           "version": version, "verdict": verdict, "submit_mode": SUBMIT_MODE}
+           "version": version, "verdict": verdict, "submit_mode": SUBMIT_MODE,
+           "generator": llm.generator_name()}
     if SUBMIT_MODE == "server":
         rec = submit_verdict(
             {**ENV}, receipt_id=req.receipt_id, buyer=rc["buyer"], version=version,
