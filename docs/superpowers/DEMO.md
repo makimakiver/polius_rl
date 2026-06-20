@@ -20,8 +20,16 @@ RL loop publishes a better checkpoint                            the asset appre
 
 ## 1. Publish the package + create the asset
 
+> **Fund first:** publishing this 5-module package costs ~0.1 SUI. Top up the active address at
+> https://faucet.sui.io (the CLI faucet is disabled). Check with `sui client gas`.
+>
+> **Fresh publish (required):** Phase A changed `ModelRegistry`'s layout, so this is a *new* package,
+> not an upgrade. Remove the `[published.testnet]` block from `contracts/Published.toml` first (it is
+> regenerated on success), otherwise publish aborts with "already published".
+
 ```bash
 cd contracts && sui move test          # 12/12 green
+# (remove the [published.testnet] entry from Published.toml — see note above)
 sui client publish                     # no --gas-budget (see memory: deploy-no-gas-budget)
 #   → record the new packageId  → NEXT_PUBLIC_PKG_ID
 PKG=<packageId>
