@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { WalletButton } from "./wallet";
-import { DashboardIcon, LayersIcon, ActivityIcon, SettingsIcon, PlusIcon, BotIcon, CoinsIcon } from "./icons";
+import { DashboardIcon, LayersIcon, ActivityIcon, SettingsIcon, PlusIcon, BotIcon, CoinsIcon, ToriiIcon } from "./icons";
 
 const nav = [
   { label: "Dashboard", href: "/", icon: DashboardIcon },
@@ -12,6 +12,7 @@ const nav = [
   { label: "Agents", href: "/agents", icon: BotIcon },
   { label: "Environments", href: "/environments", icon: LayersIcon },
   { label: "Deploy", href: "/deploy", icon: PlusIcon },
+  { label: "Deploy Env", href: "/environments/deploy", icon: ToriiIcon },
   { label: "Settings", href: "#", icon: SettingsIcon },
 ];
 
