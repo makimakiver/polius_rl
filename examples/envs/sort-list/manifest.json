@@ -1,0 +1,5 @@
+{
+  "name": "Sort-List Bench",
+  "description": "Sort integers ascending (negatives + duplicates). Grader: exact match on the integer sequence.",
+  "tags": ["sorting", "code", "judge0"]
+}

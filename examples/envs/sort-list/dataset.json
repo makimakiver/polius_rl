@@ -1,0 +1,6 @@
+[
+  { "question": "Sort ascending: 3 1 2", "answer": "1 2 3" },
+  { "question": "Sort ascending: 5 -3 5 0 -3 9", "answer": "-3 -3 0 5 5 9" },
+  { "question": "Sort ascending: -1 -2 -2 10 0", "answer": "-2 -2 -1 0 10" },
+  { "question": "Sort ascending: 4 4 4 1", "answer": "1 4 4 4" }
+]
