@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import AppShell from "../components/AppShell";
 import ListingCard from "../components/ListingCard";
+import OnchainEnvCard from "../components/OnchainEnvCard";
 import { LISTINGS, passPct, versionAt } from "../data/market";
 import { shortAddress } from "../data/environments";
 import { useRegistry } from "../hooks/useRegistry";
+import { useOnchainEnvironments } from "../hooks/useOnchainEnvironments";
 
 const num = new Intl.NumberFormat("en-US");
 const sui = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
@@ -28,6 +30,9 @@ export default function MarketPage() {
 
   // Live verified-call count from the deployed registry (Suilend-style live KPI).
   const reg = useRegistry(REGISTRY);
+  // Live on-chain environments (Walrus-backed, Nautilus-verifiable).
+  const envs = useOnchainEnvironments();
+  const onchainEnvs = envs.data ?? [];
 
   const visible = LISTINGS.filter((l) => vf === "all" || l.verifier.kind === vf);
 
@@ -115,6 +120,31 @@ export default function MarketPage() {
                   listing={l}
                   verifiedCalls={l.verifier.kind === "judge0" ? verifiedCalls : undefined}
                 />
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* on-chain environments (Walrus-backed, Nautilus-verified) */}
+        <section className="mt-10">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-medium uppercase tracking-wide">On-chain environments</h2>
+            <Link href="/environments/deploy" className="font-mono text-[11px] text-accent hover:underline">
+              deploy an environment →
+            </Link>
+          </div>
+          {envs.isLoading && onchainEnvs.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-ink/20 p-8 text-center text-sm text-ink/50">
+              reading on-chain environments…
+            </p>
+          ) : onchainEnvs.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-ink/20 p-8 text-center text-sm text-ink/50">
+              No on-chain environments yet — deploy one with the CLI or the Deploy Env page.
+            </p>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {onchainEnvs.map((e) => (
+                <OnchainEnvCard key={e.id} env={e} />
               ))}
             </div>
           )}
