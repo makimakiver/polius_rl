@@ -1,0 +1,31 @@
+{
+  "name": "pollius-env",
+  "version": "0.1.0",
+  "description": "Deploy RL environments on-chain (Pollius / Sui): verify → Walrus → register → Nautilus-attested epoch.",
+  "keywords": ["sui", "rl", "reinforcement-learning", "walrus", "nautilus", "verifiable", "cli"],
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "pollius-env": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/makimakiver/polius_rl.git",
+    "directory": "packages/pollius-env"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node -e \"require('fs').chmodSync('dist/cli.js', 0o755)\"",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0"
+  }
+}

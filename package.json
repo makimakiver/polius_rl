@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "env": "tsx scripts/pollius-env.ts"
+    "env": "npx -y tsx packages/pollius-env/src/cli.ts"
   },
   "dependencies": {
     "@mysten/dapp-kit": "^1.0.6",
