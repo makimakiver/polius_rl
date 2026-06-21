@@ -23,14 +23,17 @@ DURATION_MIN="${DURATION_MIN:-1200}"   # 1200 = 20h (default demo lifetime)
 [ -f .deploy.env ] && set -a && . ./.deploy.env && set +a
 : "${PRIVATE_KEY:?PRIVATE_KEY not set — add it to environments/enclave/.deploy.env}"
 
-# 1. build for the enclave host arch (Oyster Nitro is arm64) and push
-docker build --platform linux/arm64 -t "${IMAGE_REPO}:${IMAGE_TAG}" .
-docker push "${IMAGE_REPO}:${IMAGE_TAG}"
-
-# 2. pin the pushed digest into the compose we actually deploy ('#' delim: digest has '@')
-DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_REPO}:${IMAGE_TAG}")
-sed -i '' "s#^[[:space:]]*image:.*#    image: ${DIGEST}#" "${COMPOSE_FILE}"
-echo "pinned ${COMPOSE_FILE} -> ${DIGEST}"
+# 1+2. build/push and repin the image — skip with SKIP_BUILD=1 to redeploy the
+#      already-pinned known-good image (fast path; no docker needed).
+if [ "${SKIP_BUILD:-}" != "1" ]; then
+  docker build --platform linux/arm64 -t "${IMAGE_REPO}:${IMAGE_TAG}" .
+  docker push "${IMAGE_REPO}:${IMAGE_TAG}"
+  DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_REPO}:${IMAGE_TAG}")
+  sed -i '' "s#^[[:space:]]*image:.*#    image: ${DIGEST}#" "${COMPOSE_FILE}"
+  echo "pinned ${COMPOSE_FILE} -> ${DIGEST}"
+else
+  echo "SKIP_BUILD=1 → deploying already-pinned image in ${COMPOSE_FILE}"
+fi
 
 # 2b. Ensure USDC is SPENDABLE before paying. oyster-cvm pays in USDC, but funds
 #     received into the Sui *address balance* (accumulator) are NOT spendable Coin
