@@ -10,7 +10,11 @@ Default grader: exact-match on the parsed integer sequence (the sort-list env).
 """
 import hashlib
 import json
+import os
 import re
+import shutil
+import subprocess
+import tempfile
 
 DIRECT_SYSTEM = (
     "You sort integers. Given a list, reply with ONLY the integers sorted in "
@@ -26,7 +30,7 @@ def _ints(text: str) -> list:
     return [int(x) for x in re.findall(r"-?\d+", text or "")]
 
 
-def exact_match(generated: str, answer: str) -> float:
+def exact_match(generated: str, answer: str, question: str = "") -> float:
     return 1.0 if _ints(generated) == _ints(answer) else 0.0
 
 
@@ -34,14 +38,60 @@ def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9 ]", "", (s or "").lower()).strip()
 
 
-def contains_match(generated: str, answer: str) -> float:
+def contains_match(generated: str, answer: str, question: str = "") -> float:
     """1.0 if the expected answer appears in the model's output (normalized)."""
     a = _norm(answer)
     return 1.0 if a and a in _norm(generated) else 0.0
 
 
+LEAN_TIMEOUT = int(os.environ.get("LEAN_TIMEOUT", "30"))
+
+
+def _sanitize_proof(generated: str) -> str:
+    """Reduce the model output to a bare Lean proof: strip markdown fences and
+    drop any line that escapes a proof (imports / `#`-commands like #eval)."""
+    s = (generated or "").strip()
+    if s.startswith("```"):
+        s = "\n".join(ln for ln in s.splitlines() if not ln.strip().startswith("```")).strip()
+    return "\n".join(
+        ln for ln in s.splitlines()
+        if not ln.strip().startswith(("import ", "#"))
+    ).strip()
+
+
+def lean_compiles(generated: str, answer: str = "", question: str = "") -> float:
+    """1.0 iff `{question}\\n  {proof}` compiles with the real Lean 4 toolchain.
+
+    `question` is the theorem statement ending in `:=`; the model's output is the
+    proof appended to it. Rewards only a clean build — no errors, no sorry/admit.
+    Requires `lean` on PATH (the epoch runs in the verifier process, not the
+    enclave, so the verifier host must have the Lean toolchain installed).
+    """
+    lean = shutil.which("lean")
+    if not lean:
+        raise RuntimeError("lean_compiles grader requires the Lean toolchain (`lean`) on PATH")
+    proof = _sanitize_proof(generated)
+    sig = (question or "").strip()
+    if not proof or not sig:
+        return 0.0
+    src = f"{sig}\n  {proof}\n"
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "Proof.lean")
+        with open(path, "w") as fh:
+            fh.write(src)
+        try:
+            r = subprocess.run([lean, path], capture_output=True, text=True, timeout=LEAN_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            return 0.0
+    out = (r.stdout + "\n" + r.stderr).lower()
+    if r.returncode != 0 or "error" in out or "sorry" in out or "admit" in out:
+        return 0.0
+    return 1.0
+
+
 # Grader registry — environments select one by name in their manifest.
-GRADERS = {"exact_ints": exact_match, "contains": contains_match}
+GRADERS = {"exact_ints": exact_match, "contains": contains_match,
+           "lean_compiles": lean_compiles}
 
 
 def default_dataset(n: int = 8, list_len: int = 6, seed: int = 0) -> list:
@@ -68,7 +118,7 @@ def run_epoch(dataset: list, model_fn, grader=exact_match) -> dict:
     rewards = []
     for row in dataset:
         out = model_fn(row["question"])
-        rewards.append(float(grader(out, row["answer"])))
+        rewards.append(float(grader(out, row["answer"], row.get("question", ""))))
     n = len(rewards)
     mean_reward_bps = int(round(10000 * (sum(rewards) / n))) if n else 0
     pass_bps = int(round(10000 * (sum(1 for r in rewards if r >= 1.0) / n))) if n else 0

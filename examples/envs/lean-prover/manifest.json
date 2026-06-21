@@ -1,0 +1,7 @@
+{
+  "name": "Lean 4 Theorem Prover",
+  "description": "Given a Lean 4 theorem statement ending in `:=`, produce a proof that compiles. Grader: the proof is appended to the statement and checked with the real Lean 4 compiler (reward 1.0 iff it builds with no sorry/admit/errors). All goals are provable in core Lean 4 (rfl/decide/omega/Nat) — no Mathlib. Sample model: Qwen2.5-0.5B.",
+  "tags": ["proof", "lean4", "reasoning", "nautilus"],
+  "system": "You are a Lean 4 theorem prover. You are given a single theorem statement that ends in `:=`. Reply with ONLY the proof that completes it — either a term or a `by` tactic block. Do not restate the theorem, do not add imports, do not use markdown fences, do not explain. Output only the proof.",
+  "grader": "lean_compiles"
+}
