@@ -51,3 +51,7 @@ environments/.pytest_cache/
 
 # large demo media — keep out of public git history (share separately)
 docs/media/*.mp4
+
+# wallet keys for enclave deploy — NEVER commit
+.deploy.env
+**/.deploy.env
