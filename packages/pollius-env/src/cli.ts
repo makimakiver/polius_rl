@@ -31,7 +31,7 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync, existsSync, realpathSync } from "node:fs";
-import { join } from "node:path";
+import { join, dirname, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const fetchFn: typeof fetch = (globalThis as { fetch: typeof fetch }).fetch;
@@ -39,14 +39,38 @@ const fetchFn: typeof fetch = (globalThis as { fetch: typeof fetch }).fetch;
 const PUBLISHER = process.env.WALRUS_PUBLISHER ?? "https://publisher.walrus-testnet.walrus.space";
 const VERIFIER = process.env.PY_VERIFIER_URL ?? "http://localhost:8077";
 
+/** Walk up from cwd to find the repo root (the dir holding .env.local), so the
+ *  CLI works from any subdirectory — not just the repo root. */
+function findRepoRoot(start: string): string {
+  let d = start;
+  for (let i = 0; i < 12; i++) {
+    if (existsSync(join(d, ".env.local"))) return d;
+    const parent = dirname(d);
+    if (parent === d) break;
+    d = parent;
+  }
+  return start;
+}
+const REPO_ROOT = findRepoRoot(process.cwd());
+
 function envFromDotenv(key: string): string | undefined {
   try {
-    const txt = readFileSync(join(process.cwd(), ".env.local"), "utf8");
+    const txt = readFileSync(join(REPO_ROOT, ".env.local"), "utf8");
     const m = txt.match(new RegExp(`^${key}=(.*)$`, "m"));
     return m?.[1]?.trim() || undefined;
   } catch {
     return undefined;
   }
+}
+
+/** Resolve a bundle dir against cwd first, then the repo root (so a path like
+ *  `examples/envs/lean-prover` works from anywhere in the repo). */
+function resolveBundle(dir: string): string {
+  if (isAbsolute(dir)) return dir;
+  if (existsSync(join(dir, "manifest.json"))) return dir;
+  const atRoot = join(REPO_ROOT, dir);
+  if (existsSync(join(atRoot, "manifest.json"))) return atRoot;
+  return dir;
 }
 
 const PKG = process.env.NEXT_PUBLIC_PKG_ID ?? envFromDotenv("NEXT_PUBLIC_PKG_ID");
@@ -169,7 +193,8 @@ function sui(args: string[]): string {
 }
 
 async function deploy(dir: string, withEpoch: boolean, nameOverride?: string) {
-  if (!PKG) die("NEXT_PUBLIC_PKG_ID not set (in env or .env.local)");
+  if (!PKG) die("NEXT_PUBLIC_PKG_ID not set (looked in env and ${REPO_ROOT}/.env.local)".replace("${REPO_ROOT}", REPO_ROOT));
+  dir = resolveBundle(dir);
   const manifestPath = join(dir, "manifest.json");
   const datasetPath = join(dir, "dataset.json");
   if (!existsSync(manifestPath)) die(`missing ${manifestPath}`);
