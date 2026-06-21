@@ -48,3 +48,6 @@ environments/**/__pycache__/
 environments/**/*.egg-info/
 environments/outputs/
 environments/.pytest_cache/
+
+# large demo media — keep out of public git history (share separately)
+docs/media/*.mp4

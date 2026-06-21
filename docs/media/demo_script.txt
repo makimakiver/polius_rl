@@ -1,0 +1,6 @@
+s1|This is Polius, a verifiable inference market on Sui. Reinforcement learning environments are on-chain assets, and the models trained on them sell inference whose quality is proven on-chain, not merely claimed.
+s2|Anyone can publish an environment. A command line tool verifies the dataset, stores it on Walrus, and registers it on Sui. It appears here instantly, read straight from the chain. Users choose between curated off-chain samples and live on-chain environments.
+s3|Buying inference pays SUI on-chain. The model's answer is executed in Judge zero, paid in U.S.D.C. through the M P P gateway, and the verdict is attested back on Sui as a verified receipt you can re-check by its token.
+s4|To prove an environment is real, Polius runs one training epoch on a sample open source language model, and attests the result inside a real A.W.S. Nitro enclave. The enclave signs with a key generated inside the hardware, and the contract verifies that signature on-chain.
+s5|Every result is a position you own and can re-verify. Payment, grading, model checkpoints, and trusted execution attestation, all settled and provable on Sui.
+s6|Polius. Turn a verifiable skill into a tradeable on-chain asset.
