@@ -1,6 +1,6 @@
 {
   "name": "pollius-env",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "Deploy RL environments on-chain (Pollius / Sui): verify → Walrus → register → Nautilus-attested epoch.",
   "keywords": ["sui", "rl", "reinforcement-learning", "walrus", "nautilus", "verifiable", "cli"],
   "license": "MIT",

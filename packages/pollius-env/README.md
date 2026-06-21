@@ -17,12 +17,15 @@ npx pollius-env deploy ./my-env --epoch
 ## Usage
 
 ```bash
-pollius-env deploy <dir> [--epoch]
+pollius-env deploy <dir> [--epoch] [--name "<env name>"]
 ```
 
 - `<dir>` — an environment bundle directory (see layout below).
 - `--epoch` — also run one attested verification epoch and mint an on-chain
   `EpochAttestation` bound to the new environment.
+- `--name "<env name>"` — override the environment name from `manifest.json`
+  at deploy time (handy for scripting multiple variants from one bundle).
+  Also accepts `--name=<value>`.
 
 ### Bundle layout
 

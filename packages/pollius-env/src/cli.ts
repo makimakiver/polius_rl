@@ -30,8 +30,9 @@
  */
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, realpathSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const fetchFn: typeof fetch = (globalThis as { fetch: typeof fetch }).fetch;
 
@@ -167,7 +168,7 @@ function sui(args: string[]): string {
   return execFileSync("sui", args, { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
 }
 
-async function deploy(dir: string, withEpoch: boolean) {
+async function deploy(dir: string, withEpoch: boolean, nameOverride?: string) {
   if (!PKG) die("NEXT_PUBLIC_PKG_ID not set (in env or .env.local)");
   const manifestPath = join(dir, "manifest.json");
   const datasetPath = join(dir, "dataset.json");
@@ -178,7 +179,7 @@ async function deploy(dir: string, withEpoch: boolean) {
   const dataset = JSON.parse(readFileSync(datasetPath, "utf8"));
   if (!Array.isArray(dataset) || !dataset.every((r) => r.question && r.answer))
     die("dataset.json must be an array of { question, answer }");
-  const name: string = manifest.name ?? "untitled-env";
+  const name: string = nameOverride ?? manifest.name ?? "untitled-env";
   const description: string = manifest.description ?? "";
   const tags: string[] = manifest.tags ?? [];
   const codePath = join(dir, "reward.py");
@@ -249,13 +250,41 @@ async function deploy(dir: string, withEpoch: boolean) {
   console.log(`\nIt will appear on the marketplace under On-chain environments.`);
 }
 
+/** Parse deploy flags. Supports `--epoch`, `--name <value>` and `--name=<value>`. */
+export function parseDeployArgs(flags: string[]): { withEpoch: boolean; name?: string } {
+  let withEpoch = false;
+  let name: string | undefined;
+  for (let i = 0; i < flags.length; i++) {
+    const f = flags[i];
+    if (f === "--epoch") withEpoch = true;
+    else if (f === "--name") {
+      name = flags[++i];
+      if (name === undefined || name.startsWith("--")) die("--name requires a value");
+    } else if (f.startsWith("--name=")) {
+      name = f.slice("--name=".length);
+      if (!name) die("--name requires a value");
+    }
+  }
+  return { withEpoch, name };
+}
+
 function main() {
   const [cmd, dir, ...flags] = process.argv.slice(2);
   if (cmd !== "deploy" || !dir) {
-    console.log("usage: pollius-env deploy <dir> [--epoch]");
+    console.log('usage: pollius-env deploy <dir> [--epoch] [--name "<env name>"]');
     process.exit(cmd ? 1 : 0);
   }
-  deploy(dir, flags.includes("--epoch")).catch((e) => die(String(e?.message ?? e)));
+  const { withEpoch, name } = parseDeployArgs(flags);
+  deploy(dir, withEpoch, name).catch((e) => die(String(e?.message ?? e)));
 }
 
-main();
+// Run only when invoked as the CLI. Resolve symlinks so this also fires through
+// bin shims (npx, global install, node_modules/.bin); importing for tests won't match.
+function isCliEntry(): boolean {
+  try {
+    return !!process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+  } catch {
+    return false;
+  }
+}
+if (isCliEntry()) main();
