@@ -4,11 +4,14 @@
  * spendable Coin<T> object — then merge any existing coins of that type into it.
  *
  * Why: funds received via send_funds live in the address-balance accumulator. They
- * show up in `getBalance`/`getCoins` (totalBalance) but NOT in `getOwnedObjects`,
- * so `merge-coin` / wallets / oyster-cvm can't spend them until withdrawn. This does
+ * show up in `getBalance` (addressBalance) but NOT as owned Coin objects, so
+ * `merge-coin` / wallets / oyster-cvm can't spend them until withdrawn. This does
  * the withdraw + redeem (`tx.withdrawal()` -> `0x2::coin::redeem_funds<T>`).
  *
- * Needs @mysten/sui >= 2.19 (the version that added `tx.withdrawal`). Run with:
+ * Uses the gRPC client (@mysten/sui/grpc) and its unified core API:
+ *   getBalance -> { balance, coinBalance, addressBalance }, listCoins, simulateTransaction.
+ *
+ * Run with:
  *   export SUI_PRIVATE_KEY=$(sui keytool export --key-identity <alias-or-addr> --json \
  *                             | python3 -c "import sys,json;print(json.load(sys.stdin)['exportedPrivateKey'])")
  *   COIN_TYPE=0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC \
@@ -16,13 +19,13 @@
  *
  * The final execute is a real mainnet transaction (gas in SUI). Review DRY_RUN output first.
  */
-import { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
+import { SuiGrpcClient } from "@mysten/sui/grpc";
 import { Transaction } from "@mysten/sui/transactions";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Secp256k1Keypair } from "@mysten/sui/keypairs/secp256k1";
 import { decodeSuiPrivateKey } from "@mysten/sui/cryptography";
 
-const RPC = process.env.SUI_RPC ?? "https://sui-rpc.publicnode.com"; // reliable keyless mainnet RPC
+const RPC = process.env.SUI_GRPC_URL ?? "https://fullnode.mainnet.sui.io:443"; // Sui mainnet gRPC (grpc-web)
 const COIN_TYPE = process.env.COIN_TYPE
   ?? "0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC";
 const DRY_RUN = process.env.DRY_RUN === "1";
@@ -40,23 +43,25 @@ async function main() {
   const sk = process.env.SUI_PRIVATE_KEY ?? die("SUI_PRIVATE_KEY not set (suiprivkey1…)");
   const kp = keypairFrom(sk);
   const me = kp.getPublicKey().toSuiAddress();
-  const client = new SuiJsonRpcClient({ url: RPC });
+  const client = new SuiGrpcClient({ network: "mainnet", baseUrl: RPC });
   console.log(`▸ address  : ${me}`);
   console.log(`  coinType : ${COIN_TYPE}`);
-  console.log(`  rpc      : ${RPC}`);
+  console.log(`  grpc     : ${RPC}`);
 
-  // total (owned coins + accumulator) vs the real owned Coin objects
-  const bal = await client.getBalance({ owner: me, coinType: COIN_TYPE });
-  const total = BigInt(bal.totalBalance);
-  const owned: { coinObjectId: string; balance: string }[] = [];
-  let cursor: string | null | undefined = null;
+  // the core gRPC API splits the balance into owned coins vs the accumulator portion
+  const { balance } = await client.getBalance({ owner: me, coinType: COIN_TYPE });
+  const total = BigInt(balance.balance);
+  const ownedSum = BigInt(balance.coinBalance);
+  const addressBalance = BigInt(balance.addressBalance);
+
+  // the real owned Coin<T> objects — needed as merge inputs
+  const owned: { objectId: string; balance: string }[] = [];
+  let cursor: string | null = null;
   do {
-    const page = await client.getCoins({ owner: me, coinType: COIN_TYPE, cursor });
-    owned.push(...page.data);
-    cursor = page.hasNextPage ? page.nextCursor : null;
+    const page = await client.listCoins({ owner: me, coinType: COIN_TYPE, cursor });
+    owned.push(...page.objects.map((c) => ({ objectId: c.objectId, balance: c.balance })));
+    cursor = page.hasNextPage ? page.cursor : null;
   } while (cursor);
-  const ownedSum = owned.reduce((s, c) => s + BigInt(c.balance), 0n);
-  const addressBalance = total - ownedSum; // the accumulator portion
 
   const d = 1e6; // USDC has 6 decimals (display only)
   console.log(`  total    : ${Number(total) / d}`);
@@ -71,23 +76,24 @@ async function main() {
     typeArguments: [COIN_TYPE],
     arguments: [tx.withdrawal({ amount: addressBalance, type: COIN_TYPE })],
   });
-  if (owned.length) tx.mergeCoins(coin, owned.map((c) => tx.object(c.coinObjectId)));
+  if (owned.length) tx.mergeCoins(coin, owned.map((c) => tx.object(c.objectId)));
   tx.transferObjects([coin], me);
 
   if (DRY_RUN) {
     tx.setSender(me);
-    const bytes = await tx.build({ client });
-    const sim = await client.dryRunTransactionBlock({ transactionBlock: bytes });
-    console.log("DRY RUN status:", sim.effects.status);
+    const sim = await client.simulateTransaction({ transaction: tx, include: { effects: true } });
+    const t = sim.$kind === "Transaction" ? sim.Transaction : sim.FailedTransaction;
+    console.log("DRY RUN:", sim.$kind, "-", t.status.success ? "success" : t.status.error);
     return;
   }
   const res = await client.signAndExecuteTransaction({
     signer: kp, transaction: tx,
-    options: { showEffects: true, showBalanceChanges: true },
+    include: { effects: true, balanceChanges: true },
   });
-  console.log("status :", res.effects?.status);
-  console.log("digest :", res.digest);
-  console.log("balanceChanges:", JSON.stringify(res.balanceChanges, null, 2));
+  const t = res.$kind === "Transaction" ? res.Transaction : res.FailedTransaction;
+  console.log("status :", t.status.success ? "success" : t.status.error);
+  console.log("digest :", t.digest);
+  console.log("balanceChanges:", JSON.stringify(t.balanceChanges, null, 2));
 }
 
 main().catch((e) => die(String(e?.message ?? e)));
