@@ -60,7 +60,7 @@ export default function Home() {
             </p>
             <div className="mt-7 flex flex-wrap items-center gap-4">
               <DeployButton>Deploy environment</DeployButton>
-              <Link href="/environments" className="text-sm text-ink/60 underline-offset-4 hover:text-accent hover:underline">
+              <Link href="/market" className="text-sm text-ink/60 underline-offset-4 hover:text-accent hover:underline">
                 Browse environments →
               </Link>
             </div>
@@ -83,7 +83,7 @@ export default function Home() {
           <section>
             <div className="mb-4 flex items-baseline justify-between">
               <h2 className="font-mono text-xs uppercase tracking-[0.25em] text-ink/50">Featured environments</h2>
-              <Link href="/environments" className="font-mono text-xs text-ink/50 underline-offset-4 hover:text-accent hover:underline">
+              <Link href="/market" className="font-mono text-xs text-ink/50 underline-offset-4 hover:text-accent hover:underline">
                 view all →
               </Link>
             </div>

@@ -149,7 +149,7 @@ export default function ListingDetailPage() {
             <p className="mt-2 flex flex-wrap items-center gap-2 font-mono text-xs text-ink/50">
               <span>deployed {listing.deployedAt} · {listing.totalCalls.toLocaleString()} calls · {listing.priceSui} SUI / call</span>
               <Link
-                href="/environments"
+                href="/market"
                 className="rounded-full border border-accent/30 bg-accent/[0.08] px-2 py-0.5 text-accent hover:bg-accent/[0.14]"
               >
                 env: {getEnvironment(listing.environmentId)?.name ?? listing.environmentId} ↗

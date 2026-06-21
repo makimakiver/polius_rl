@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   useCurrentAccount,
@@ -8,110 +8,285 @@ import {
   useSuiClient,
 } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
+import { fromHex } from "@mysten/sui/utils";
 import AppShell from "../components/AppShell";
 import { useWalletModal } from "../components/wallet";
 import { fieldCls, labelCls } from "../components/ui";
-import { shortAddress } from "../lib/format";
-
-const ALGOS = ["PPO", "SAC", "DQN", "Rainbow DQN", "A2C", "TD3", "Thompson Sampling"];
 
 const PKG =
   process.env.NEXT_PUBLIC_PKG_ID ??
   "0x149cff9273cd26d4c32fbf49ed38a239e5a936f37d65408e8659938d90173608";
 
-function slugify(s: string) {
-  return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const NET = process.env.NEXT_PUBLIC_SUI_NETWORK ?? "testnet";
+
+const scanObject = (id: string) => `https://suiscan.xyz/${NET}/object/${id}`;
+const scanTx = (digest: string) => `https://suiscan.xyz/${NET}/tx/${digest}`;
+
+const DATASET_PLACEHOLDER = `[
+  { "question": "Sort the list [3, 1, 2] ascending.", "answer": "[1, 2, 3]" },
+  { "question": "Sort the list [9, 4, 7] ascending.", "answer": "[4, 7, 9]" }
+]
+
+— or JSONL, one {"question","answer"} object per line.
+Leave blank to use the default sort-list task set.`;
+
+type DeployResult = {
+  n_tasks: number;
+  dataset_hash: string;
+  artifact_uri: string;
+};
+
+type VerifyResult = {
+  env: string;
+  model: string;
+  n_samples: number;
+  mean_reward_bps: number;
+  pass_bps: number;
+  dataset_hash: string;
+  intent: number;
+  timestamp_ms: number;
+  attester_pk: string;
+  signature: string;
+};
+
+// Parse the dataset textarea: accept a JSON array of {question,answer}, or
+// JSONL (one object per line). Returns undefined when blank (backend default).
+function parseDataset(raw: string): unknown[] | undefined {
+  const text = raw.trim();
+  if (!text) return undefined;
+  try {
+    const asArray = JSON.parse(text);
+    if (Array.isArray(asArray)) return asArray;
+  } catch {
+    // fall through to JSONL parsing
+  }
+  const rows = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0)
+    .map((l) => JSON.parse(l));
+  return rows;
 }
 
-export default function DeployPage() {
+export default function DeployEnvPage() {
   const account = useCurrentAccount();
   const client = useSuiClient();
   const { open } = useWalletModal();
-  const { mutate: signAndExecute, isPending } = useSignAndExecuteTransaction();
+  const { mutateAsync: signExec } = useSignAndExecuteTransaction();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [algorithm, setAlgorithm] = useState(ALGOS[0]);
-  const [observation, setObservation] = useState("Box(4,)");
-  const [action, setAction] = useState("Discrete(2)");
-  const [lr, setLr] = useState("3e-4");
-  const [gamma, setGamma] = useState("0.99");
-  const [batch, setBatch] = useState("2048");
-  const [tags, setTags] = useState("");
-  const [artifactUri, setArtifactUri] = useState("");
-  const [deployed, setDeployed] = useState<string | null>(null);
-  const [digest, setDigest] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [dataset, setDataset] = useState("");
 
-  const id = useMemo(() => slugify(name) || "untitled-env", [name]);
+  const [deployState, setDeployState] = useState<
+    "idle" | "preparing" | "signing" | "done" | "error"
+  >("idle");
+  const [deployErr, setDeployErr] = useState("");
+  const [deploy, setDeploy] = useState<DeployResult | null>(null);
+  const [envId, setEnvId] = useState<string | null>(null);
+  const [deployDigest, setDeployDigest] = useState<string | null>(null);
+
+  const [verifyState, setVerifyState] = useState<
+    "idle" | "running" | "signing" | "done" | "error"
+  >("idle");
+  const [verifyErr, setVerifyErr] = useState("");
+  const [verify, setVerify] = useState<VerifyResult | null>(null);
+  const [attestationId, setAttestationId] = useState<string | null>(null);
+  const [verifyDigest, setVerifyDigest] = useState<string | null>(null);
+  const [runningModel, setRunningModel] = useState<string>("");
+
   const canDeploy = name.trim().length > 1;
+  const deployBusy = deployState === "preparing" || deployState === "signing";
+  const verifyBusy = verifyState === "running" || verifyState === "signing";
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  async function handleDeploy() {
     if (!account) {
       open();
       return;
     }
     if (!canDeploy) return;
-    setError(null);
+    setDeployErr("");
+    setDeploy(null);
+    try {
+      let parsed: unknown[] | undefined;
+      try {
+        parsed = parseDataset(dataset);
+      } catch {
+        throw new Error(
+          "Dataset must be a JSON array of {question, answer} objects, or JSONL (one per line).",
+        );
+      }
 
-    const tagList = tags
-      .split(",")
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0);
+      setDeployState("preparing");
+      const res = await fetch("/api/deploy-env", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          ...(parsed ? { dataset: parsed } : {}),
+        }),
+      });
+      const text = await res.text();
+      if (!res.ok || !text) {
+        throw new Error(
+          `verifier service unreachable — start it on :8077 (${res.status})`,
+        );
+      }
+      const data: DeployResult = JSON.parse(text);
 
-    const tx = new Transaction();
-    // create_world_entry(name, description, tags, artifact_uri, ctx)
-    tx.moveCall({
-      target: `${PKG}::environment::create_world_entry`,
-      arguments: [
-        tx.pure.string(name.trim()), // name
-        tx.pure.string(description.trim()), // description
-        tx.pure.vector("string", tagList), // tags
-        tx.pure.string(artifactUri.trim()), // artifact_uri
-      ],
-    });
+      setDeployState("signing");
+      const tx = new Transaction();
+      // create_world_entry(name, description, tags, artifact_uri, ctx)
+      tx.moveCall({
+        target: `${PKG}::environment::create_world_entry`,
+        arguments: [
+          tx.pure.string(name.trim()),
+          tx.pure.string(description.trim()),
+          tx.pure.vector("string", []),
+          tx.pure.string(data.artifact_uri),
+        ],
+      });
+      const signed = await signExec({ transaction: tx });
+      await client.waitForTransaction({ digest: signed.digest });
+      const block = await client.getTransactionBlock({
+        digest: signed.digest,
+        options: { showObjectChanges: true },
+      });
+      const created = block.objectChanges?.find(
+        (c) =>
+          c.type === "created" &&
+          String(c.objectType ?? "").endsWith("::environment::Environment"),
+      );
+      if (!created || created.type !== "created") {
+        throw new Error(
+          "Transaction landed but no ::environment::Environment object was created.",
+        );
+      }
 
-    signAndExecute(
-      { transaction: tx },
-      {
-        onSuccess: async ({ digest }) => {
-          setDigest(digest);
-          await client.waitForTransaction({ digest });
-          setDeployed(id);
-        },
-        onError: (e) => {
-          console.error("[deploy] tx failed:", e);
-          const msg = e instanceof Error ? e.message : String(e);
-          setError(
-            /gas|balance|insufficient/i.test(msg)
-              ? "No gas — this address has 0 SUI. Fund it from the testnet faucet, or wire up Enoki sponsored transactions."
-              : msg,
-          );
-        },
-      },
-    );
-  };
+      setEnvId(created.objectId);
+      setDeployDigest(signed.digest);
+      setDeploy(data);
+      setDeployState("done");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setDeployErr(
+        /gas|balance|insufficient/i.test(msg)
+          ? "No gas — fund this address from the testnet faucet."
+          : msg,
+      );
+      setDeployState("error");
+    }
+  }
+
+  async function handleVerify() {
+    if (!envId) return;
+    if (!account) {
+      open();
+      return;
+    }
+    setVerifyErr("");
+    setVerify(null);
+    try {
+      setRunningModel("a sample OSS LLM");
+      setVerifyState("running");
+      const res = await fetch("/api/verify-env", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ env_id: envId }),
+      });
+      const text = await res.text();
+      if (!res.ok || !text) {
+        throw new Error(
+          `verifier service unreachable — start it on :8077 (${res.status})`,
+        );
+      }
+      const data: VerifyResult = JSON.parse(text);
+      setRunningModel(data.model);
+
+      setVerifyState("signing");
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${PKG}::env_verifier::verify_epoch_entry`,
+        arguments: [
+          tx.pure.id(envId),
+          tx.pure.vector(
+            "u8",
+            Array.from(fromHex(data.attester_pk.replace(/^0x/, ""))),
+          ),
+          tx.pure.u8(data.intent),
+          tx.pure.u64(data.timestamp_ms),
+          tx.pure.string(data.model),
+          tx.pure.u64(data.n_samples),
+          tx.pure.u64(data.mean_reward_bps),
+          tx.pure.u64(data.pass_bps),
+          tx.pure.vector(
+            "u8",
+            Array.from(fromHex(data.dataset_hash.replace(/^0x/, ""))),
+          ),
+          tx.pure.vector(
+            "u8",
+            Array.from(fromHex(data.signature.replace(/^0x/, ""))),
+          ),
+        ],
+      });
+      const signed = await signExec({ transaction: tx });
+      await client.waitForTransaction({ digest: signed.digest });
+      const block = await client.getTransactionBlock({
+        digest: signed.digest,
+        options: { showObjectChanges: true },
+      });
+      const created = block.objectChanges?.find(
+        (c) =>
+          c.type === "created" &&
+          String(c.objectType ?? "").endsWith(
+            "::env_verifier::EpochAttestation",
+          ),
+      );
+
+      setAttestationId(
+        created && created.type === "created" ? created.objectId : null,
+      );
+      setVerifyDigest(signed.digest);
+      setVerify(data);
+      setVerifyState("done");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setVerifyErr(
+        /gas|balance|insufficient/i.test(msg)
+          ? "No gas — fund this address from the testnet faucet."
+          : msg,
+      );
+      setVerifyState("error");
+    }
+  }
 
   return (
     <AppShell>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-8 sm:px-8">
-        <Link href="/" className="font-mono text-xs text-ink/50 underline-offset-4 hover:underline">
+      <main className="mx-auto w-full max-w-4xl flex-1 px-5 py-8 sm:px-8">
+        <Link
+          href="/"
+          className="font-mono text-xs text-ink/50 underline-offset-4 hover:underline"
+        >
           ← dashboard
         </Link>
 
         <header className="mt-5 border-b border-ink/15 pb-6">
-          <h1 className="text-3xl font-medium tracking-tight">Deploy a custom environment</h1>
+          <h1 className="text-3xl font-medium tracking-tight">
+            Deploy &amp; verify an RL environment
+          </h1>
           <p className="mt-2 max-w-2xl text-sm text-ink/60">
-            Configure your reinforcement-learning environment and register it on Sui.
-            Your connected wallet becomes the deployer.
+            Register a reinforcement-learning environment on Sui, then prove it
+            is real and trainable: one epoch runs on a sample OSS LLM inside a
+            TEE enclave (Nautilus), and the enclave signature is verified
+            on-chain.
           </p>
         </header>
 
-        {/* wallet gate banner */}
         {!account && (
           <div className="mt-6 flex items-center justify-between gap-4 border border-accent/30 bg-accent/[0.06] px-4 py-3 text-sm">
-            <span className="text-ink/70">Connect your Sui wallet to deploy an environment.</span>
+            <span className="text-ink/70">
+              Connect your Sui wallet to deploy an environment.
+            </span>
             <button
               onClick={open}
               className="shrink-0 bg-ink px-3 py-1.5 text-xs font-medium text-background transition-colors hover:bg-black"
@@ -121,217 +296,270 @@ export default function DeployPage() {
           </div>
         )}
 
-        {deployed ? (
-          <DeployedSuccess id={deployed} name={name} digest={digest} />
-        ) : (
-          <div className="mt-8 grid gap-8 lg:grid-cols-[1.5fr_1fr]">
-            {/* form */}
-            <form onSubmit={handleSubmit} className="flex flex-col gap-7">
-              <Section title="Basics">
-                <div>
-                  <label className={labelCls}>Environment name</label>
-                  <input
-                    className={fieldCls}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. CartPole Swarm"
-                  />
-                  {name && (
-                    <p className="mt-1 font-mono text-[11px] text-ink/40">id: {id}</p>
-                  )}
-                </div>
-                <div>
-                  <label className={labelCls}>Description</label>
-                  <textarea
-                    className={`${fieldCls} h-20 resize-none`}
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="What does the agent learn in this environment?"
-                  />
-                </div>
-              </Section>
+        {/* STEP 1 — DEPLOY */}
+        <Step n={1} title="Deploy the environment" active>
+          <div className="flex flex-col gap-5">
+            <div>
+              <label className={labelCls}>Environment name</label>
+              <input
+                className={fieldCls}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Sort-List Bench"
+                disabled={deployState === "done"}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Description</label>
+              <textarea
+                className={`${fieldCls} h-20 resize-none`}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="What does the agent learn in this environment?"
+                disabled={deployState === "done"}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Dataset (optional)</label>
+              <textarea
+                className={`${fieldCls} h-44 resize-y font-mono text-[12px] leading-5`}
+                value={dataset}
+                onChange={(e) => setDataset(e.target.value)}
+                placeholder={DATASET_PLACEHOLDER}
+                disabled={deployState === "done"}
+              />
+              <p className="mt-1 text-[11px] text-ink/40">
+                JSONL or a JSON array of {"{question, answer}"}. Leave blank to
+                use the default sort-list task set.
+              </p>
+            </div>
 
-              <Section title="Algorithm & spaces">
-                <div>
-                  <label className={labelCls}>Algorithm</label>
-                  <select
-                    className={fieldCls}
-                    value={algorithm}
-                    onChange={(e) => setAlgorithm(e.target.value)}
-                  >
-                    {ALGOS.map((a) => (
-                      <option key={a} value={a}>{a}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className={labelCls}>Observation space</label>
-                    <input className={fieldCls} value={observation} onChange={(e) => setObservation(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Action space</label>
-                    <input className={fieldCls} value={action} onChange={(e) => setAction(e.target.value)} />
-                  </div>
-                </div>
-              </Section>
-
-              <Section title="Hyperparameters">
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className={labelCls}>Learning rate</label>
-                    <input className={fieldCls} value={lr} onChange={(e) => setLr(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Gamma</label>
-                    <input className={fieldCls} value={gamma} onChange={(e) => setGamma(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Batch size</label>
-                    <input className={fieldCls} value={batch} onChange={(e) => setBatch(e.target.value)} />
-                  </div>
-                </div>
-              </Section>
-
-              <Section title="Tags">
-                <input
-                  className={fieldCls}
-                  value={tags}
-                  onChange={(e) => setTags(e.target.value)}
-                  placeholder="comma,separated,tags"
-                />
-              </Section>
-
-              <Section title="Artifact">
-                <div>
-                  <label className={labelCls}>Artifact URI</label>
-                  <input
-                    className={fieldCls}
-                    value={artifactUri}
-                    onChange={(e) => setArtifactUri(e.target.value)}
-                    placeholder="walrus://… · ipfs://… · https://…"
-                  />
-                  <p className="mt-1 text-[11px] text-ink/40">
-                    Pointer to the off-chain env package, dataset &amp; reward code.
-                  </p>
-                </div>
-              </Section>
-
-              <div className="flex flex-col gap-3 border-t border-ink/15 pt-6">
-                <div className="flex items-center gap-4">
-                  <button
-                    type="submit"
-                    disabled={isPending || (!!account && !canDeploy)}
-                    className="bg-ink px-5 py-2.5 text-sm font-medium text-background transition-colors hover:bg-black disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {isPending
-                      ? "Deploying…"
+            {deployState !== "done" && (
+              <div>
+                <button
+                  onClick={handleDeploy}
+                  disabled={deployBusy || (!!account && !canDeploy)}
+                  className="rounded-full border border-ink bg-ink px-5 py-2.5 text-sm font-medium text-background transition-colors hover:bg-transparent hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {deployState === "preparing"
+                    ? "Building dataset…"
+                    : deployState === "signing"
+                      ? "Registering on Sui…"
                       : account
                         ? "Deploy environment"
                         : "Connect to deploy"}
-                  </button>
-                  <Link href="/" className="text-sm text-ink/50 underline-offset-4 hover:underline">
-                    Cancel
-                  </Link>
-                </div>
-                {error && (
-                  <p className="border border-rose-500/30 bg-rose-500/[0.06] px-4 py-3 text-xs text-rose-600">
-                    {error}
-                  </p>
-                )}
+                </button>
               </div>
-            </form>
+            )}
 
-            {/* live preview */}
-            <aside className="lg:sticky lg:top-8 lg:self-start">
-              <p className={labelCls}>Preview</p>
-              <div className="border border-ink/15 bg-white/40 p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-base font-medium tracking-tight">{name || "Untitled environment"}</h3>
-                  <span className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-ink/60">
-                    <span className="h-1.5 w-1.5 rounded-full border border-ink/40" />
-                    Draft
-                  </span>
+            {deployState === "error" && (
+              <p className="rounded-md border border-rose-500/30 bg-rose-500/[0.06] px-4 py-3 text-xs text-rose-600">
+                {deployErr}
+              </p>
+            )}
+
+            {deployState === "done" && deploy && envId && (
+              <div className="space-y-3">
+                <div className="inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent/[0.1] px-3 py-1 font-mono text-sm text-accent">
+                  ✓ Environment registered
                 </div>
-                <p className="mt-2 line-clamp-3 text-sm text-ink/50">
-                  {description || "Your environment description will appear here."}
-                </p>
-                <div className="mt-4 flex items-center justify-between border-t border-ink/10 pt-3 font-mono text-[11px] text-ink/50">
-                  <span>{algorithm}</span>
-                  <span>{observation} → {action}</span>
-                </div>
-                <div className="mt-2 font-mono text-[11px] text-ink/40">
-                  by {account ? shortAddress(account.address) : "— connect wallet"}
+                <div className="grid gap-px overflow-hidden rounded-lg border border-ink/15 bg-ink/10 sm:grid-cols-2">
+                  <Row k="Tasks in dataset" v={String(deploy.n_tasks)} />
+                  <Row
+                    k="Environment"
+                    v={envId}
+                    mono
+                    link={scanObject(envId)}
+                  />
+                  <Row k="Dataset hash" v={deploy.dataset_hash} mono />
+                  {deployDigest && (
+                    <Row
+                      k="Deploy tx"
+                      v={deployDigest}
+                      mono
+                      link={scanTx(deployDigest)}
+                    />
+                  )}
                 </div>
               </div>
-              <ul className="mt-4 space-y-1.5 text-xs text-ink/45">
-                <li>· Settles on Sui Testnet</li>
-                <li>· Name, description, tags &amp; artifact pointer are stored on-chain</li>
-                <li>· Broadcasts a real create_world_entry transaction</li>
-              </ul>
-            </aside>
+            )}
           </div>
-        )}
+        </Step>
+
+        {/* STEP 2 — VERIFY */}
+        <Step n={2} title="Verify via epoch + Nautilus" active={!!envId}>
+          {!envId ? (
+            <p className="text-sm text-ink/45">
+              Deploy an environment first to unlock TEE-attested verification.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-5">
+              <p className="max-w-2xl text-sm text-ink/60">
+                Runs one epoch on a sample OSS LLM, attested by a TEE enclave
+                (Nautilus); the enclave signature is verified on-chain via{" "}
+                <span className="font-mono text-[12px]">verify_epoch_entry</span>
+                .
+              </p>
+
+              {verifyState !== "done" && (
+                <div>
+                  <button
+                    onClick={handleVerify}
+                    disabled={verifyBusy}
+                    className="rounded-full border border-ink bg-ink px-5 py-2.5 text-sm font-medium text-background transition-colors hover:bg-transparent hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {verifyState === "running"
+                      ? `Running epoch on ${runningModel}…`
+                      : verifyState === "signing"
+                        ? "Recording attestation…"
+                        : "Run verification epoch (Nautilus)"}
+                  </button>
+                  {verifyState === "running" && (
+                    <p className="mt-2 text-[11px] text-ink/40">
+                      Real model epoch — this can take ~40s.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {verifyState === "error" && (
+                <p className="rounded-md border border-rose-500/30 bg-rose-500/[0.06] px-4 py-3 text-xs text-rose-600">
+                  {verifyErr}
+                </p>
+              )}
+
+              {verifyState === "done" && verify && (
+                <div className="space-y-3">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent/[0.1] px-3 py-1 font-mono text-sm text-accent">
+                    ✓ Nautilus-verified
+                  </div>
+                  <div className="grid gap-px overflow-hidden rounded-lg border border-ink/15 bg-ink/10 sm:grid-cols-2">
+                    <Row k="Mean reward" v={pct(verify.mean_reward_bps)} />
+                    <Row k="Pass rate" v={pct(verify.pass_bps)} />
+                    <Row k="Samples" v={String(verify.n_samples)} />
+                    <Row k="Sample model" v={verify.model} />
+                    <Row
+                      k="Attester pubkey"
+                      v={truncate(verify.attester_pk)}
+                      mono
+                    />
+                    <Row k="Dataset hash" v={verify.dataset_hash} mono />
+                    {attestationId && (
+                      <Row
+                        k="EpochAttestation"
+                        v={attestationId}
+                        mono
+                        link={scanObject(attestationId)}
+                      />
+                    )}
+                    {verifyDigest && (
+                      <Row
+                        k="Verify tx"
+                        v={verifyDigest}
+                        mono
+                        link={scanTx(verifyDigest)}
+                      />
+                    )}
+                  </div>
+                  <p className="text-[11px] leading-5 text-ink/40">
+                    Epoch run on a sample OSS LLM, attested by a TEE enclave
+                    (Nautilus); the enclave signature is verified on-chain.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </Step>
       </main>
 
       <footer className="border-t border-ink/15 px-5 py-6 sm:px-8">
-        <div className="mx-auto flex max-w-6xl items-center justify-between font-mono text-xs text-ink/40">
-          <Link href="/" className="hover:text-ink">← back</Link>
-          <span>sui testnet</span>
+        <div className="mx-auto flex max-w-4xl items-center justify-between font-mono text-xs text-ink/40">
+          <Link href="/" className="hover:text-ink">
+            ← back
+          </Link>
+          <span>sui {NET}</span>
         </div>
       </footer>
     </AppShell>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function pct(bps: number): string {
+  return `${(Number(bps) / 100).toFixed(2)}%`;
+}
+
+function truncate(s: string): string {
+  return s.length > 20 ? `${s.slice(0, 12)}…${s.slice(-6)}` : s;
+}
+
+function Step({
+  n,
+  title,
+  active,
+  children,
+}: {
+  n: number;
+  title: string;
+  active?: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="font-mono text-xs uppercase tracking-[0.2em] text-ink/50">{title}</h2>
-      {children}
+    <section className={`mt-8 ${active ? "" : "opacity-60"}`}>
+      <div className="mb-4 flex items-center gap-3">
+        <span
+          className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs font-medium ${
+            active
+              ? "border-accent bg-accent/[0.1] text-accent"
+              : "border-ink/30 text-ink/40"
+          }`}
+        >
+          {n}
+        </span>
+        <h2 className="text-lg font-medium tracking-tight">{title}</h2>
+      </div>
+      <div className="border-l border-ink/10 pl-5 sm:pl-7">{children}</div>
     </section>
   );
 }
 
-function DeployedSuccess({
-  id,
-  name,
-  digest,
+function Row({
+  k,
+  v,
+  mono,
+  link,
 }: {
-  id: string;
-  name: string;
-  digest: string | null;
+  k: string;
+  v?: string;
+  mono?: boolean;
+  link?: string;
 }) {
+  const text = v ?? "—";
+  const display = mono && text.length > 22 ? `${text.slice(0, 22)}…` : text;
   return (
-    <div className="mt-10 border border-ink/15 bg-white/50 p-8 text-center">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent/15 text-accent">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20 6 9 17l-5-5" />
-        </svg>
-      </div>
-      <h2 className="mt-4 text-xl font-medium tracking-tight">Environment deployed</h2>
-      <p className="mt-2 text-sm text-ink/60">
-        <span className="font-medium text-ink">{name || "Your environment"}</span> is registered on Sui.
-      </p>
-      <p className="mt-1 font-mono text-xs text-ink/40">id: {id}</p>
-      {digest && (
+    <div className="flex items-center justify-between gap-3 bg-background px-4 py-3">
+      <span className="font-mono text-[11px] uppercase tracking-wide text-ink/40">
+        {k}
+      </span>
+      {link ? (
         <a
-          href={`https://suiscan.xyz/testnet/tx/${digest}`}
+          href={link}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-2 inline-block break-all font-mono text-xs text-accent underline-offset-4 hover:underline"
+          className={`text-accent underline-offset-4 hover:underline ${
+            mono ? "break-all font-mono text-xs" : "text-sm"
+          }`}
         >
-          {digest} ↗
+          {display}
         </a>
+      ) : (
+        <span
+          className={
+            mono ? "font-mono text-xs text-ink/80" : "text-sm text-ink/80"
+          }
+        >
+          {display}
+        </span>
       )}
-      <div className="mt-6 flex items-center justify-center gap-3">
-        <Link href="/" className="bg-ink px-5 py-2.5 text-sm font-medium text-background transition-colors hover:bg-black">
-          View dashboard
-        </Link>
-        <Link href="/deploy" className="border border-ink/15 px-5 py-2.5 text-sm transition-colors hover:border-accent">
-          Deploy another
-        </Link>
-      </div>
     </div>
   );
 }

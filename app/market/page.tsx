@@ -129,7 +129,7 @@ export default function MarketPage() {
         <section className="mt-10">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-medium uppercase tracking-wide">On-chain environments</h2>
-            <Link href="/environments/deploy" className="font-mono text-[11px] text-accent hover:underline">
+            <Link href="/deploy" className="font-mono text-[11px] text-accent hover:underline">
               deploy an environment →
             </Link>
           </div>
@@ -139,7 +139,7 @@ export default function MarketPage() {
             </p>
           ) : onchainEnvs.length === 0 ? (
             <p className="rounded-lg border border-dashed border-ink/20 p-8 text-center text-sm text-ink/50">
-              No on-chain environments yet — deploy one with the CLI or the Deploy Env page.
+              No on-chain environments yet — deploy one with the CLI or the Deploy page.
             </p>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
