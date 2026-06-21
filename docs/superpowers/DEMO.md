@@ -207,9 +207,17 @@ ENCLAVE_URL=http://13.126.43.205:3000 REAL_LLM=1 ... uvicorn verifier.service:ap
 against the enclave pubkey → `EpochAttestation 0x6c745707…` minted. Verify the enclave independently with
 `oyster-cvm verify --enclave-ip 13.126.43.205`.
 
-> Funding note: a 40h deploy costs ~3.94 USDC (0.0986/hr); this run was ~20h (1.97 USDC) because the
-> wallet's spendable USDC was 2.10 at deploy time. Re-run `oyster-cvm deploy … --duration-in-minutes 2400`
-> after topping up USDC to extend to 40h — no code changes needed.
+> Funding note: cost is ~0.0986 USDC/hr. **Default demo lifetime is 20h** (`--duration-in-minutes 1200`,
+> ~1.97 USDC) — this is hardcoded in `../nautilus_practice/build_deploy_enclave.sh`. Re-deploy to refresh:
+> ```bash
+> cd ../nautilus_practice && set -a && . ./.deploy.env && set +a
+> oyster-cvm deploy --wallet-private-key "$PRIVATE_KEY" \
+>   --docker-compose ./enclave_python/docker-compose.yml \
+>   --instance-type c6g.xlarge --duration-in-minutes 1200 --deployment sui
+> ```
+> A fresh deploy gets a **new IP** — update `ENCLAVE_URL=http://<NEW_IP>:3000` in `.env.local` and restart
+> the verifier (it falls back to the local seed key automatically if the enclave is unreachable). For 40h
+> use `--duration-in-minutes 2400` (~3.94 USDC) after topping up USDC.
 
 ## 5. What proves it's honest
 
