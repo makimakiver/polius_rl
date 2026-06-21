@@ -1,0 +1,7 @@
+{
+  "name": "World Capitals QA",
+  "description": "Given a country, name its capital city. Grader: the expected city appears in the model's answer (case-insensitive). Sample model: Qwen2.5-0.5B.",
+  "tags": ["qa", "geography", "nautilus"],
+  "system": "You answer geography questions. Reply with ONLY the capital city name, nothing else.",
+  "grader": "contains"
+}

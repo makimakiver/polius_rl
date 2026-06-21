@@ -16,6 +16,10 @@ DIRECT_SYSTEM = (
     "You sort integers. Given a list, reply with ONLY the integers sorted in "
     "ascending order, space-separated, and nothing else."
 )
+GENERIC_SYSTEM = (
+    "Answer with ONLY the final answer — a single word or short phrase — and "
+    "nothing else. No explanation, no punctuation."
+)
 
 
 def _ints(text: str) -> list:
@@ -24,6 +28,20 @@ def _ints(text: str) -> list:
 
 def exact_match(generated: str, answer: str) -> float:
     return 1.0 if _ints(generated) == _ints(answer) else 0.0
+
+
+def _norm(s: str) -> str:
+    return re.sub(r"[^a-z0-9 ]", "", (s or "").lower()).strip()
+
+
+def contains_match(generated: str, answer: str) -> float:
+    """1.0 if the expected answer appears in the model's output (normalized)."""
+    a = _norm(answer)
+    return 1.0 if a and a in _norm(generated) else 0.0
+
+
+# Grader registry — environments select one by name in their manifest.
+GRADERS = {"exact_ints": exact_match, "contains": contains_match}
 
 
 def default_dataset(n: int = 8, list_len: int = 6, seed: int = 0) -> list:
@@ -58,13 +76,15 @@ def run_epoch(dataset: list, model_fn, grader=exact_match) -> dict:
             "pass_bps": pass_bps, "dataset_hash": dataset_hash(dataset)}
 
 
-def make_model_fn():
-    """The sample OSS LLM attempt fn — real Qwen-0.5B when available, else stand-in."""
+def make_model_fn(system: str = DIRECT_SYSTEM, max_new_tokens: int = 48):
+    """The sample OSS LLM attempt fn — real Qwen-0.5B when available, else stand-in.
+
+    `system` selects the task framing (sorting vs a generic short-answer task).
+    """
     from verifier import llm
     if llm.available():
-        return lambda q: llm.generate_chat(DIRECT_SYSTEM, q, max_new_tokens=48)
-    # stand-in: a deterministic imperfect baseline (sorts but drops the sign on negatives)
-    def standin(q):
-        nums = _ints(q)
-        return " ".join(map(str, sorted(abs(x) for x in nums)))
-    return standin
+        return lambda q: llm.generate_chat(system, q, max_new_tokens=max_new_tokens)
+    # stand-in (no model): only the sort task has a deterministic baseline.
+    if system == DIRECT_SYSTEM:
+        return lambda q: " ".join(map(str, sorted(abs(x) for x in _ints(q))))
+    return lambda q: ""  # generic tasks need a real model

@@ -116,10 +116,10 @@ async function deploy(dir: string, runEpoch: boolean) {
       const r = await fetch(`${VERIFIER}/verify-env`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ env_id: "0x0", dataset }),
+        body: JSON.stringify({ env_id: "0x0", dataset, grader: manifest.grader, system: manifest.system }),
       });
       const d = (await r.json()) as any;
-      console.log(`  epoch: ${d.model} · reward ${d.mean_reward_bps / 100}% · pass ${d.pass_bps / 100}%`);
+      console.log(`  epoch: ${d.model} · reward ${d.mean_reward_bps / 100}% · pass ${d.pass_bps / 100}% · attested_by ${d.attested_by}`);
     } catch {
       console.log("  (epoch skipped — verifier offline)");
     }

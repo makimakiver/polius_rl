@@ -94,6 +94,8 @@ class DeployEnvReq(BaseModel):
 class VerifyEnvReq(BaseModel):
     env_id: str
     dataset: list | None = None
+    grader: str | None = None   # "exact_ints" (default) | "contains"
+    system: str | None = None   # task prompt; defaults to the sort prompt
 
 
 @app.post("/deploy-env")
@@ -121,8 +123,10 @@ def verify_env(req: VerifyEnvReq):
     if dataset is None:
         # try the stored bundle by env, else the default set
         dataset = epoch_mod.default_dataset()
-    model_fn = epoch_mod.make_model_fn()
-    result = epoch_mod.run_epoch(dataset, model_fn)
+    system = req.system or epoch_mod.DIRECT_SYSTEM
+    grader = epoch_mod.GRADERS.get(req.grader or "exact_ints", epoch_mod.exact_match)
+    model_fn = epoch_mod.make_model_fn(system=system)
+    result = epoch_mod.run_epoch(dataset, model_fn, grader=grader)
     out = {
         "env": req.env_id, "model": SAMPLE_MODEL,
         "n_samples": result["n_samples"], "mean_reward_bps": result["mean_reward_bps"],

@@ -33,6 +33,16 @@ def test_run_epoch_scores_dataset():
     assert len(res["dataset_hash"]) == 32
 
 
+def test_contains_grader_and_generic_epoch():
+    ds = [{"question": "What is the capital of France?", "answer": "Paris"},
+          {"question": "What is the capital of Japan?", "answer": "Tokyo"}]
+    # a model that answers verbosely but correctly
+    res = epoch.run_epoch(ds, lambda q: f"The capital is {'Paris' if 'France' in q else 'Kyoto'}.",
+                          grader=epoch.contains_match)
+    assert res["n_samples"] == 2 and res["pass_bps"] == 5000  # France right, Japan wrong
+    assert epoch.GRADERS["contains"] is epoch.contains_match
+
+
 def test_standin_model_is_imperfect_on_negatives():
     ds = [{"question": "Sort ascending: -3 1", "answer": "-3 1"}]
     res = epoch.run_epoch(ds, epoch.make_model_fn())

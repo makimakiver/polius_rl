@@ -1,0 +1,12 @@
+[
+  { "question": "What is the capital of France?", "answer": "Paris" },
+  { "question": "What is the capital of Japan?", "answer": "Tokyo" },
+  { "question": "What is the capital of Canada?", "answer": "Ottawa" },
+  { "question": "What is the capital of Australia?", "answer": "Canberra" },
+  { "question": "What is the capital of Egypt?", "answer": "Cairo" },
+  { "question": "What is the capital of Brazil?", "answer": "Brasilia" },
+  { "question": "What is the capital of Germany?", "answer": "Berlin" },
+  { "question": "What is the capital of Kenya?", "answer": "Nairobi" },
+  { "question": "What is the capital of Norway?", "answer": "Oslo" },
+  { "question": "What is the capital of Thailand?", "answer": "Bangkok" }
+]
